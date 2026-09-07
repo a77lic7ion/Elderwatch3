@@ -1,20 +1,19 @@
-import { GoogleAuth } from 'google-auth-library';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
 const SERVICE_ACCOUNT = {
   type: 'service_account',
   project_id: process.env.FIREBASE_PROJECT_ID,
   client_email: process.env.FIREBASE_CLIENT_EMAIL,
-  private_key: process.env.FIREBASE_PRIVATE_KEY,
+  private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
 };
 
-async function getAccessToken() {
-  const auth = new GoogleAuth({
-    credentials: SERVICE_ACCOUNT,
-    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-  });
-  const client = await auth.getClient();
-  const tokenResponse = await client.getAccessToken();
-  return tokenResponse.token;
+let app;
+if (getApps().length === 0) {
+  app = initializeApp({ credential: cert(SERVICE_ACCOUNT) });
+} else {
+  app = getApps()[0];
 }
 
 export default async function handler(req, res) {
@@ -36,55 +35,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    const accessToken = await getAccessToken();
-
     // Update password in Firebase Auth
-    const authResponse = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/accounts:update`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          localId: staffId,
-          password: newPassword,
-          returnSecureToken: true,
-        }),
-      }
-    );
+    await getAuth().updateUser(staffId, { password: newPassword });
 
-    if (!authResponse.ok) {
-      const authError = await authResponse.json();
-      console.error('Auth update error:', authError);
-      return res.status(500).json({ error: 'Failed to update password in authentication' });
-    }
-
-    // Update ONLY passwordHash in Firestore staff document using updateMask
-    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/staff/${staffId}?updateMask=passwordHash`;
-    
-    const firestoreResponse = await fetch(
-      firestoreUrl,
-      {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fields: {
-            passwordHash: { stringValue: newPassword },
-          },
-        }),
-      }
-    );
-
-    if (!firestoreResponse.ok) {
-      const fsError = await firestoreResponse.json();
-      console.error('Firestore update error:', fsError);
-      return res.status(500).json({ error: 'Failed to update password in database' });
-    }
+    // Update passwordHash in Firestore staff document
+    await getFirestore().collection('staff').doc(staffId).update({ passwordHash: newPassword });
 
     return res.status(200).json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
