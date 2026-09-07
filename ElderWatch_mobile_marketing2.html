@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ElderWatch — Simple Daily Wellness Check-in for Frailcare</title>
+  <meta name="description" content="One tap tells you a resident is okay. No tap tells you they need a visit. Simple, reliable daily wellness check-in for frailcare and retirement homes.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ew-dark: #1A221E;
+      --ew-darker: #121815;
+      --ew-green: #157A4C;
+      --ew-green-light: #22C55E;
+      --ew-green-glow: rgba(21, 122, 76, 0.4);
+      --ew-cream: #F7FAFC;
+      --ew-red: #DC2626;
+      --ew-amber: #F59E0B;
+      --ew-slate-50: #F8FAFC;
+      --ew-slate-100: #F1F5F9;
+      --ew-slate-200: #E2E8F0;
+      --ew-slate-400: #94A3B8;
+      --ew-slate-600: #475569;
+      --ew-slate-700: #334155;
+      --ew-slate-800: #1E293B;
+      --ew-slate-900: #0F172A;
+      --radius: 20px;
+      --radius-sm: 12px;
+      --radius-lg: 28px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--ew-slate-800);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ===== HERO ===== */
+    .hero {
+      background: linear-gradient(165deg, var(--ew-darker) 0%, var(--ew-dark) 50%, #0D1A14 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 24px 80px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(21, 122, 76, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(21, 122, 76, 0.15);
+      border: 1px solid rgba(21, 122, 76, 0.3);
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ew-green-light);
+      margin-bottom: 32px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .hero-badge::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--ew-green-light);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .hero-logo {
+      width: 120px;
+      height: 120px;
+      margin-bottom: 24px;
+      filter: drop-shadow(0 20px 40px rgba(0,0,0,0.5));
+    }
+
+    .hero-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .hero h1 {
+      color: white;
+      font-size: clamp(36px, 6vw, 64px);
+      max-width: 700px;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--ew-green-light) 0%, #4ADE80 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      color: var(--ew-slate-400);
+      font-size: 18px;
+      max-width: 520px;
+      margin-bottom: 40px;
+      line-height: 1.7;
+    }
+
+    .hero-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--ew-green);
+      color: white;
+      padding: 16px 32px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 16px;
+      text-decoration: none;
+      box-shadow: 0 8px 32px var(--ew-green-glow);
+      transition: all 0.3s ease;
+    }
+
+    .hero-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px var(--ew-green-glow);
+    }
+
+    /* ===== PHONE MOCKUP ===== */
+    .phone-showcase {
+      display: flex;
+      justify-content: center;
+      margin-top: 60px;
+    }
+
+    .phone {
+      width: 280px;
+      background: var(--ew-dark);
+      border-radius: 36px;
+      padding: 20px 16px;
+      box-shadow: 
+        0 0 0 8px #2A3530,
+        0 32px 64px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+
+    .phone-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .phone-header img {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+    }
+
+    .phone-header span {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      color: white;
+    }
+
+    .phone-lang {
+      margin-left: auto;
+      display: flex;
+      gap: 4px;
+    }
+
+    .phone-lang button {
+      border: none;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .phone-lang .active {
+      background: var(--ew-green);
+      color: white;
+    }
+
+    .phone-lang .inactive {
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.6);
+    }
+
+    .phone-greeting {
+      color: white;
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .phone-location {
+      color: var(--ew-slate-400);
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .phone-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .phone-btn {
+      border-radius: 18px;
+      padding: 28px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .phone-btn.ok {
+      background: var(--ew-green);
+      box-shadow: 0 8px 24px var(--ew-green-glow);
+    }
+
+    .phone-btn.help {
+      background: var(--ew-red);
+      box-shadow: 0 8px 24px rgba(220, 38, 38, 0.4);
+    }
+
+    .phone-btn svg {
+      width: 48px;
+      height: 48px;
+    }
+
+    .phone-btn .label {
+      color: white;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+    }
+
+    .phone-btn .sub {
+      color: rgba(255,255,255,0.85);
+      font-size: 13px;
+    }
+
+    /* ===== PROBLEM SECTION ===== */
+    .problem {
+      background: white;
+      padding: 100px 24px;
+    }
+
+    .problem-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 48px;
+    }
+
+    .problem-card {
+      border-radius: var(--radius);
+      padding: 32px;
+      border: 1px solid var(--ew-slate-200);
+    }
+
+    .problem-card.old {
+      background: var(--ew-slate-50);
+    }
+
+    .problem-card.new {
+      background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+      border-color: #A7F3D0;
+    }
+
+    .problem-card .tag {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+
+    .problem-card.old .tag {
+      color: var(--ew-slate-600);
+    }
+
+    .problem-card.new .tag {
+      color: var(--ew-green);
+    }
+
+    .problem-card h3 {
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+
+    .problem-card p {
+      color: var(--ew-slate-600);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    /* ===== HOW IT WORKS ===== */
+    .how-it-works {
+      background: var(--ew-slate-50);
+      padding: 100px 24px;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 600px;
+      margin: 0 auto 56px;
+    }
+
+    .section-header h2 {
+      font-size: clamp(28px, 4vw, 42px);
+      margin-bottom: 16px;
+    }
+
+    .section-header p {
+      color: var(--ew-slate-600);
+      font-size: 18px;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .step {
+      background: white;
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      border: 1px solid var(--ew-slate-200);
+      position: relative;
+    }
+
+    .step-num {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-sm);
+      background: var(--ew-dark);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+
+    .step h3 {
+      font-size: 17px;
+      margin-bottom: 8px;
+    }
+
+    .step p {
+      color: var(--ew-slate-600);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ===== STAFF DASHBOARD ===== */
+    .staff-section {
+      background: linear-gradient(165deg, var(--ew-slate-900) 0%, var(--ew-dark) 100%);
+      padding: 100px 24px;
+      color: white;
+    }
+
+    .staff-section h2 {
+      color: white;
+    }
+
+    .staff-section .section-header p {
+      color: var(--ew-slate-400);
+    }
+
+    .staff-layout {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 48px;
+      align-items: center;
+      margin-top: 48px;
+    }
+
+    .staff-features {
+      list-style: none;
+    }
+
+    .staff-features li {
+      padding: 16px 0;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 16px;
+      color: var(--ew-slate-400);
+    }
+
+    .staff-features li:first-child {
+      border-top: none;
+      padding-top: 0;
+    }
+
+    .staff-features li::before {
+      content: '✓';
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(21, 122, 76, 0.2);
+      color: var(--ew-green-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* Dashboard mockup */
+    .dashboard-mock {
+      background: white;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.4);
+    }
+
+    .dash-header {
+      background: var(--ew-dark);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dash-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dash-brand img {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+    }
+
+    .dash-brand span {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 14px;
+      color: white;
+    }
+
+    .dash-home {
+      background: rgba(255,255,255,0.1);
+      color: var(--ew-slate-400);
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 999px;
+    }
+
+    .dash-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding: 20px;
+    }
+
+    .dash-stat {
+      border: 1px solid var(--ew-slate-200);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+    }
+
+    .dash-stat.ok {
+      background: #ECFDF5;
+      border-color: #A7F3D0;
+    }
+
+    .dash-stat.help {
+      background: #FEF2F2;
+      border-color: #FECACA;
+    }
+
+    .dash-stat.awaiting {
+      background: var(--ew-slate-50);
+    }
+
+    .dash-stat .label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ew-slate-600);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .dash-stat .value {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 28px;
+      margin-top: 4px;
+    }
+
+    .dash-stat.ok .value { color: #059669; }
+    .dash-stat.help .value { color: var(--ew-red); }
+    .dash-stat.awaiting .value { color: var(--ew-slate-600); }
+
+    .dash-residents {
+      padding: 0 20px 20px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .dash-resident {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid var(--ew-slate-200);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+    }
+
+    .dash-resident .info h4 {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .dash-resident .info span {
+      font-size: 12px;
+      color: var(--ew-slate-400);
+    }
+
+    .dash-resident .status {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 999px;
+    }
+
+    .dash-resident .status.ok {
+      background: #ECFDF5;
+      color: #059669;
+    }
+
+    .dash-resident .status.help {
+      background: #FEF2F2;
+      color: var(--ew-red);
+    }
+
+    .dash-resident .status.awaiting {
+      background: var(--ew-slate-100);
+      color: var(--ew-slate-600);
+    }
+
+    /* ===== FEATURES ===== */
+    .features {
+      background: white;
+      padding: 100px 24px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 48px;
+    }
+
+    .feature-card {
+      padding: 32px;
+      border-radius: var(--radius);
+      border: 1px solid var(--ew-slate-200);
+      transition: all 0.3s ease;
+    }
+
+    .feature-card:hover {
+      border-color: var(--ew-green);
+      box-shadow: 0 8px 32px rgba(21, 122, 76, 0.1);
+    }
+
+    .feature-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .feature-icon svg {
+      width: 24px;
+      height: 24px;
+      color: var(--ew-green);
+    }
+
+    .feature-card h3 {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .feature-card p {
+      color: var(--ew-slate-600);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* ===== CTA SECTION ===== */
+    .cta-section {
+      background: linear-gradient(165deg, var(--ew-darker) 0%, var(--ew-dark) 100%);
+      padding: 100px 24px;
+      text-align: center;
+    }
+
+    .cta-section h2 {
+      color: white;
+      font-size: clamp(32px, 5vw, 48px);
+      max-width: 600px;
+      margin: 0 auto 20px;
+    }
+
+    .cta-section p {
+      color: var(--ew-slate-400);
+      font-size: 18px;
+      max-width: 480px;
+      margin: 0 auto 40px;
+    }
+
+    .cta-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 32px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 16px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+    }
+
+    .cta-btn.primary {
+      background: var(--ew-green);
+      color: white;
+      box-shadow: 0 8px 32px var(--ew-green-glow);
+    }
+
+    .cta-btn.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px var(--ew-green-glow);
+    }
+
+    .cta-btn.secondary {
+      background: transparent;
+      color: white;
+      border: 2px solid rgba(255,255,255,0.2);
+    }
+
+    .cta-btn.secondary:hover {
+      border-color: rgba(255,255,255,0.4);
+      background: rgba(255,255,255,0.05);
+    }
+
+    /* ===== FOOTER ===== */
+    footer {
+      background: var(--ew-darker);
+      padding: 40px 24px;
+      text-align: center;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .footer-logo img {
+      width: 32px;
+      height: 32px;
+    }
+
+    .footer-logo span {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 16px;
+      color: white;
+    }
+
+    footer p {
+      color: var(--ew-slate-400);
+      font-size: 14px;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 900px) {
+      .problem-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .steps {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .staff-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .hero {
+        padding: 48px 20px 60px;
+        min-height: auto;
+      }
+
+      .hero h1 {
+        font-size: 32px;
+      }
+
+      .hero-sub {
+        font-size: 16px;
+      }
+
+      .phone {
+        width: 260px;
+      }
+
+      .steps {
+        grid-template-columns: 1fr;
+      }
+
+      .dash-stats {
+        grid-template-columns: 1fr;
+      }
+
+      .cta-buttons {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">Live Now in South Africa</div>
+    
+    <div class="hero-logo">
+      <img src="https://elderwatch3.vercel.app/elderwatch-logo.png" alt="ElderWatch Logo">
+    </div>
+
+    <h1>Daily check-in your residents can <span>actually use</span></h1>
+    <p class="hero-sub">One tap tells you a resident is okay. No tap by a set time tells you they need a visit — automatically.</p>
+    
+    <a href="https://wa.me/27724123856" class="cta-btn primary" style="font-size: 18px; padding: 18px 36px;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+      Start a Free Trial
+    </a>
+
+    <!-- Phone Mockup -->
+    <div class="phone-showcase">
+      <div class="phone">
+        <div class="phone-header">
+          <img src="https://elderwatch3.vercel.app/elderwatch-logo.png" alt="ElderWatch">
+          <span>ElderWatch</span>
+          <div class="phone-lang">
+            <button class="active">EN</button>
+            <button class="inactive">AF</button>
+          </div>
+        </div>
+        <div class="phone-greeting">Good morning, Grace</div>
+        <div class="phone-location">Room 12 · Willow Cottage</div>
+        <div class="phone-buttons">
+          <div class="phone-btn ok">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M8 12.5l3 3 5-6"/>
+            </svg>
+            <span class="label">I'm OK</span>
+            <span class="sub">Tap once. The sisters will know.</span>
+          </div>
+          <div class="phone-btn help">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 11V5.5a1.5 1.5 0 013 0V11"/>
+              <path d="M10 10V4.5a1.5 1.5 0 013 0V10"/>
+              <path d="M13 10.5V5.5a1.5 1.5 0 013 0v6"/>
+              <path d="M16 12.5V8a1.5 1.5 0 013 0v6.5A6.5 6.5 0 0112.5 21H11a5 5 0 01-4.2-2.3L4 14.5a1.6 1.6 0 012.6-1.9L7 13.5"/>
+            </svg>
+            <span class="label">I need help</span>
+            <span class="sub">A sister will come to you.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROBLEM -->
+  <section class="problem">
+    <div class="wrap">
+      <h2>The morning round takes an hour. It should take two minutes.</h2>
+      <p style="color: var(--ew-slate-600); font-size: 18px; max-width: 600px;">Right now, someone walks the halls checking a card in every window. It works, but it's slow, and it depends entirely on one person's morning.</p>
+      
+      <div class="problem-grid">
+        <div class="problem-card old">
+          <div class="tag">The way it happens today</div>
+          <h3>Manual morning rounds</h3>
+          <p>Staff walk every corridor, check every window, and write it all down by hand — every single morning, rain or shine. Miss one room, and that resident might not be checked until someone remembers.</p>
+        </div>
+        <div class="problem-card new">
+          <div class="tag">The way it should happen</div>
+          <h3>One tap, instant status</h3>
+          <p>Residents tap one button on their own phone. Staff open one screen and see everyone's status at a glance. No tap by cutoff? That's your alert to visit.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how-it-works">
+    <div class="wrap">
+      <div class="section-header">
+        <h2>How the morning actually runs</h2>
+        <p>Four simple moments, timed automatically, every single day.</p>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>7:00 AM — Reset</h3>
+          <p>Every resident's status resets automatically. A gentle prompt appears on their phone.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>Resident taps</h3>
+          <p>One tap. Green if they're okay, red if they need help. That's the entire interaction.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>9:00 AM — Cutoff</h3>
+          <p>Anyone who hasn't responded is automatically flagged — nobody is missed.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <h3>Staff see everything</h3>
+          <p>A single dashboard shows who's okay, who needs help, and who hasn't responded.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STAFF DASHBOARD -->
+  <section class="staff-section">
+    <div class="wrap">
+      <div class="section-header">
+        <h2>Built for staff who need answers fast</h2>
+        <p>One live dashboard, the whole building, updated in real-time.</p>
+      </div>
+
+      <div class="staff-layout">
+        <ul class="staff-features">
+          <li>Live status for every resident, updated instantly</li>
+          <li>Red alerts the moment a resident needs help</li>
+          <li>Missed cutoffs flagged automatically at 9:00 AM</li>
+          <li>Staff override for in-person visits</li>
+          <li>Multi-village support for larger care groups</li>
+          <li>Works for 10 residents or 1,000+</li>
+        </ul>
+
+        <div class="dashboard-mock">
+          <div class="dash-header">
+            <div class="dash-brand">
+              <img src="https://elderwatch3.vercel.app/elderwatch-logo.png" alt="ElderWatch">
+              <span>ElderWatch</span>
+            </div>
+            <div class="dash-home">Willow Cottage</div>
+          </div>
+          <div class="dash-stats">
+            <div class="dash-stat">
+              <div class="label">Total</div>
+              <div class="value" style="color: var(--ew-slate-800);">24</div>
+            </div>
+            <div class="dash-stat ok">
+              <div class="label">Checked In</div>
+              <div class="value">21</div>
+            </div>
+            <div class="dash-stat help">
+              <div class="label">Need Help</div>
+              <div class="value">1</div>
+            </div>
+          </div>
+          <div class="dash-residents">
+            <div class="dash-resident">
+              <div class="info">
+                <h4>Grace Williams</h4>
+                <span>Room 12 · Unit B</span>
+              </div>
+              <div class="status ok">Checked in 06:45</div>
+            </div>
+            <div class="dash-resident">
+              <div class="info">
+                <h4>Arthur Johnson</h4>
+                <span>Room 102</span>
+              </div>
+              <div class="status ok">Checked in 07:12</div>
+            </div>
+            <div class="dash-resident">
+              <div class="info">
+                <h4>Elsie Taylor</h4>
+                <span>Room 8 · Unit A</span>
+              </div>
+              <div class="status help">Needs attention</div>
+            </div>
+            <div class="dash-resident">
+              <div class="info">
+                <h4>David Brown</h4>
+                <span>Room 15</span>
+              </div>
+              <div class="status awaiting">Awaiting</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features">
+    <div class="wrap">
+      <div class="section-header">
+        <h2>Built for residents, designed for care</h2>
+        <p>Every detail is intentional — because the people using this deserve dignity, not complexity.</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+              <path d="M12 18h.01"/>
+            </svg>
+          </div>
+          <h3>Large, simple buttons</h3>
+          <p>Two big buttons, high contrast, easy to read. Designed for hands that might not be as steady as they used to be.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+            </svg>
+          </div>
+          <h3>English & Afrikaans</h3>
+          <p>Tap once to switch languages. Residents choose what's comfortable for them — no settings to change.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 01-3.46 0"/>
+            </svg>
+          </div>
+          <h3>Instant alerts</h3>
+          <p>When a resident taps "I need help," staff hear an alert chime immediately. No delays, no missed calls.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <h3>Private & secure</h3>
+          <p>No social features, no chat, no data collection. Just a daily check-in that keeps residents safe.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 6v6l4 2"/>
+            </svg>
+          </div>
+          <h3>Automatic cutoff</h3>
+          <p>Set a cutoff time (like 9:00 AM). Anyone who hasn't responded is flagged — nobody falls through the cracks.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+              <path d="M16 3.13a4 4 0 010 7.75"/>
+            </svg>
+          </div>
+          <h3>Multi-village support</h3>
+          <p>Manage multiple care homes from one account. Each village gets its own dashboard and settings.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="wrap">
+      <h2>Peace of mind, before the coffee's even finished</h2>
+      <p>A short trial with a handful of residents is the easiest way to see how it feels in your home.</p>
+      <div class="cta-buttons">
+        <a href="https://wa.me/27724123856" class="cta-btn primary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+          WhatsApp for a Trial
+        </a>
+        <a href="https://elderwatch3.vercel.app" class="cta-btn secondary">
+          View Live Demo →
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">
+      <img src="https://elderwatch3.vercel.app/elderwatch-logo.png" alt="ElderWatch">
+      <span>ElderWatch</span>
+    </div>
+    <p>A simple daily check-in for frailcare homes. Made with care in South Africa.</p>
+  </footer>
+
+</body>
+</html>
