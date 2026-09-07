@@ -311,7 +311,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         return;
       }
 
-      setReportRows(rows);
+      const residents = await fetchFirebaseResidents(home.id);
+      const residentMap = new Map(residents.map((r: any) => [r.id, r]));
+
+      const enriched = rows.map((r: any) => {
+        const resident = residentMap.get(r.residentId);
+        const roomNumber = resident?.roomNumber || r.roomNumber || '';
+        const unitNumber = resident?.unitNumber || r.unitNumber || '';
+        const roomDisplay = unitNumber ? `${roomNumber} / ${unitNumber}` : roomNumber;
+        return {
+          ...r,
+          residentName: resident?.name || r.residentId,
+          roomNumber: roomDisplay,
+        };
+      });
+
+      setReportRows(enriched);
       setReportRange({ start, end });
     } catch (err) {
       console.error('Report generation failed:', err);
@@ -352,7 +367,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       const tableRows = rows.map((r: any) => {
         const time = r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-        return [r.residentId || '', r.roomNumber || '', r.date || '', r.status || '', time, r.updatedBy || ''];
+        return [r.residentName || r.residentId || '', r.roomNumber || '', r.date || '', r.status || '', time, r.updatedBy || ''];
       });
 
       (autoTable as any)(doc, {
