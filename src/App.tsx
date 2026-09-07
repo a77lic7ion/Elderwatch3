@@ -70,36 +70,33 @@ export default function App() {
   const [staffUser, setStaffUser] = useState<StaffUser | null>(null);
   const [staffHome, setStaffHome] = useState<Home | null>(null);
 
-  // Restore staff session if present
+  // Restore staff session if present (sessionStorage = per-tab sessions)
+  // Each browser tab has its own isolated Firebase Auth instance (inMemoryPersistence)
+  // so multiple users can be signed in simultaneously in different tabs.
   useEffect(() => {
-    // Listen for Firebase Auth state changes
-    const unsubscribe = onAuthChange(async (firebaseUser) => {
-      if (firebaseUser) {
-        // User is signed in - get fresh token
-        const token = await firebaseUser.getIdToken();
-        
-        // Check if we have stored user data
-        try {
-          const savedAuth = localStorage.getItem('elderwatch_staff_auth');
-          if (savedAuth) {
-            const { user, home } = JSON.parse(savedAuth);
-            // Verify the stored user matches the current Firebase user
-            if (user.id === firebaseUser.uid) {
-              setStaffToken(token);
-              setStaffUser(user);
-              setStaffHome(home);
-              return;
-            }
-          }
-        } catch (e) {
-          console.error('Failed to parse saved auth:', e);
-        }
-      } else {
-        // User is signed out
+    // On mount, restore from sessionStorage if present
+    try {
+      const savedAuth = sessionStorage.getItem('elderwatch_staff_auth');
+      if (savedAuth) {
+        const { token, user, home } = JSON.parse(savedAuth);
+        setStaffToken(token);
+        setStaffUser(user);
+        setStaffHome(home);
+      }
+    } catch (e) {
+      console.error('Failed to restore session:', e);
+    }
+
+    // Listen for Firebase Auth state changes — only valid in this tab (in-memory).
+    // If the user signs out elsewhere or reloads, the auth state in this tab goes null,
+    // so we clear sessionStorage to match.
+    const unsubscribe = onAuthChange((firebaseUser) => {
+      if (!firebaseUser) {
+        // No user in this tab's in-memory auth — clear this tab's session
         setStaffToken(null);
         setStaffUser(null);
         setStaffHome(null);
-        localStorage.removeItem('elderwatch_staff_auth');
+        sessionStorage.removeItem('elderwatch_staff_auth');
       }
     });
 
@@ -160,18 +157,22 @@ export default function App() {
     setStaffToken(token);
     setStaffUser(user);
     setStaffHome(home);
-    localStorage.setItem(
+    // Use sessionStorage so each browser tab has its own independent session.
+    // This allows multiple users to be signed in simultaneously in different tabs.
+    // Each tab's Firebase Auth instance is isolated via inMemoryPersistence.
+    sessionStorage.setItem(
       'elderwatch_staff_auth',
       JSON.stringify({ token, user, home })
     );
   };
 
   const handleLogout = async () => {
+    // Sign out from THIS tab's Firebase Auth (in-memory only, doesn't affect other tabs)
     await logout();
     setStaffToken(null);
     setStaffUser(null);
     setStaffHome(null);
-    localStorage.removeItem('elderwatch_staff_auth');
+    sessionStorage.removeItem('elderwatch_staff_auth');
   };
 
   const handleLinkedSuccess = (binding: DeviceBinding) => {

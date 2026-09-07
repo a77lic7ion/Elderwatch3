@@ -14,11 +14,10 @@ export const PWAInstallButton: React.FC = () => {
     return (
       <button
         onClick={install}
-        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 active:scale-95 transition cursor-pointer"
+        className="p-2 rounded-xl border bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition cursor-pointer border-emerald-600"
         title="Install ElderWatch PWA to Home Screen"
       >
-        <Download className="w-3.5 h-3.5" />
-        <span>Install App</span>
+        <Download className="w-4 h-4" />
       </button>
     );
   }
@@ -28,10 +27,10 @@ export const PWAInstallButton: React.FC = () => {
       <>
         <button
           onClick={() => setShowIOSGuide(true)}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-xs cursor-pointer"
+          className="p-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 transition shadow-xs cursor-pointer dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
+          title="Add to iOS Home Screen"
         >
-          <Share className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Add to iOS Home Screen</span>
+          <Share className="w-4 h-4 text-emerald-600" />
         </button>
 
         {showIOSGuide && (

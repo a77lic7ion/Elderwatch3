@@ -71,7 +71,7 @@ interface ThemeToggleProps {
   showLabel?: boolean;
 }
 
-export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '', showLabel = true }) => {
+export const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '', showLabel = false }) => {
   const [isNight, setIsNight] = useAppTheme();
 
   return (

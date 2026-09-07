@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, getApp, FirebaseApp, deleteApp } from 'firebase/app';
 import {
   getFirestore,
   collection,
@@ -12,11 +12,14 @@ import {
   Unsubscribe,
 } from 'firebase/firestore';
 import {
-  getAuth,
+  initializeAuth,
+  inMemoryPersistence,
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  onIdTokenChanged,
   User as FirebaseUser,
+  Auth,
 } from 'firebase/auth';
 import { CheckIn, Resident } from '../types';
 
@@ -45,14 +48,51 @@ export const firebaseConfig = {
   measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || '',
 };
 
-// Initialize Firebase App
-export const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+// =================== PER-TAB FIREBASE APP ===================
+// Each browser tab needs its own Firebase app instance with its own Auth instance
+// using inMemoryPersistence so it doesn't sync across tabs via IndexedDB.
+// This allows multiple staff to be signed in simultaneously in different tabs,
+// while each tab still uses real Firebase Auth for security/validation.
 
-// Initialize Firestore
-export const db: Firestore = getFirestore(app);
+const TAB_ID =
+  (typeof window !== 'undefined' && window.name) ||
+  `tab-${Math.random().toString(36).slice(2, 10)}-${Date.now()}`;
 
-// Initialize Firebase Auth
-export const auth = getAuth(app);
+// Set a window name so we can identify this tab (used to scope the Firebase app name)
+if (typeof window !== 'undefined' && !window.name) {
+  try { window.name = TAB_ID; } catch { /* ignore */ }
+}
+
+const APP_NAME = `elderwatch-${TAB_ID}`;
+
+let _app: FirebaseApp;
+if (getApps().some((a) => a.name === APP_NAME)) {
+  _app = getApps().find((a) => a.name === APP_NAME)!;
+} else {
+  // Delete any leftover apps with this name (paranoid cleanup)
+  try {
+    const existing = getApps().find((a) => a.name === APP_NAME);
+    if (existing) deleteApp(existing);
+  } catch { /* ignore */ }
+  _app = initializeApp(firebaseConfig, APP_NAME);
+}
+
+export const app: FirebaseApp = _app;
+
+// Initialize Firestore (Firestore can be shared via the default app's instance,
+// but using our per-tab app keeps it isolated too — safer for multi-tenant data ops)
+export const db: Firestore = getFirestore(_app);
+
+// =================== PER-TAB FIREBASE AUTH ===================
+// inMemoryPersistence means: this tab's auth state is held in memory only.
+// It is NOT written to IndexedDB and NOT shared with other tabs.
+// When the tab is closed, the auth state is gone. The user will need to
+// sign in again next time. This is the key to allowing multiple users
+// to be signed in simultaneously across different tabs/windows.
+
+export const auth: Auth = initializeAuth(_app, {
+  persistence: inMemoryPersistence,
+});
 
 // Auth helper functions
 export async function loginWithEmail(email: string, password: string) {
@@ -60,11 +100,20 @@ export async function loginWithEmail(email: string, password: string) {
 }
 
 export async function logout() {
-  return signOut(auth);
+  try {
+    return signOut(auth);
+  } catch {
+    // If auth state is already gone (e.g. tab was duplicated), ignore.
+    return;
+  }
 }
 
 export function onAuthChange(callback: (user: FirebaseUser | null) => void) {
   return onAuthStateChanged(auth, callback);
+}
+
+export function onTokenChange(callback: (user: FirebaseUser | null) => void) {
+  return onIdTokenChanged(auth, callback);
 }
 
 // Connection state tracking
