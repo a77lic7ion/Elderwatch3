@@ -16,6 +16,7 @@ export const AddEditResidentModal: React.FC<AddEditResidentModalProps> = ({
   const [name, setName] = useState(resident?.name || '');
   const [phone, setPhone] = useState(resident?.phone || '');
   const [roomNumber, setRoomNumber] = useState(resident?.roomNumber || '');
+  const [unitNumber, setUnitNumber] = useState(resident?.unitNumber || '');
   const [emergencyContact, setEmergencyContact] = useState(resident?.emergencyContact || '');
   const [notes, setNotes] = useState(resident?.notes || '');
   const [saving, setSaving] = useState(false);
@@ -35,6 +36,7 @@ export const AddEditResidentModal: React.FC<AddEditResidentModalProps> = ({
         name: name.trim(),
         phone: phone.trim(),
         roomNumber: roomNumber.trim(),
+        unitNumber: unitNumber.trim() || undefined,
         emergencyContact: emergencyContact.trim(),
         notes: notes.trim(),
       });
@@ -89,7 +91,7 @@ export const AddEditResidentModal: React.FC<AddEditResidentModalProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Room Number *
@@ -105,6 +107,19 @@ export const AddEditResidentModal: React.FC<AddEditResidentModalProps> = ({
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 text-slate-900 text-sm font-semibold"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Unit Number
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. A1"
+                value={unitNumber}
+                onChange={(e) => setUnitNumber(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 text-slate-900 text-sm"
+              />
             </div>
 
             <div>
