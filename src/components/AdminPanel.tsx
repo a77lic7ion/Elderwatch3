@@ -92,8 +92,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [reportPeriod, setReportPeriod] = useState<'weekly' | 'monthly'>('monthly');
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
-  const [reportCsv, setReportCsv] = useState<string | null>(null);
-  const [reportFileName, setReportFileName] = useState<string | null>(null);
+  const [reportRows, setReportRows] = useState<any[] | null>(null);
+  const [reportRange, setReportRange] = useState<{ start: string; end: string } | null>(null);
 
   // Audio and Realtime State
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -300,8 +300,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleGenerateReport = async () => {
     setReportLoading(true);
     setReportError(null);
-    setReportCsv(null);
-    setReportFileName(null);
+    setReportRows(null);
+    setReportRange(null);
 
     try {
       const { start, end } = getDateRangeForPeriod(reportPeriod);
@@ -313,32 +313,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         return;
       }
 
-      const header = 'Resident,Room,Date,Status,Time,Updated By\n';
-      const body = rows
-        .sort((a: any, b: any) => {
-          if (a.residentId < b.residentId) return -1;
-          if (a.residentId > b.residentId) return 1;
-          if (a.date < b.date) return -1;
-          if (a.date > b.date) return 1;
-          return 0;
-        })
-        .map((r: any) => {
-          const time = r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-          const status = r.status || '';
-          const updatedBy = r.updatedBy || '';
-          const name = (r.residentId || '').replace(/"/g, '""');
-          const room = (r.roomNumber || '').replace(/"/g, '""');
-          const date = (r.date || '').replace(/"/g, '""');
-          const safeTime = time.replace(/"/g, '""');
-          const safeStatus = status.replace(/"/g, '""');
-          const safeUpdated = updatedBy.replace(/"/g, '""');
-          return `"${name}","${room}","${date}","${safeStatus}","${safeTime}","${safeUpdated}"`;
-        })
-        .join('\n');
-
-      const csv = header + body;
-      setReportCsv(csv);
-      setReportFileName(`ElderWatch_${home.name.replace(/[^a-zA-Z0-9]+/g, '_')}_${reportPeriod}_${start}_to_${end}.csv`);
+      setReportRows(rows);
+      setReportRange({ start, end });
     } catch (err) {
       console.error('Report generation failed:', err);
       setReportError('Failed to generate report. Please try again.');
@@ -347,15 +323,93 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const handleDownloadReport = () => {
-    if (!reportCsv || !reportFileName) return;
-    const blob = new Blob([reportCsv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = reportFileName;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownloadReport = async () => {
+    if (!reportRows || !reportRange) return;
+    const { start, end } = reportRange;
+    const rows = reportRows
+      .sort((a: any, b: any) => {
+        if (a.residentId < b.residentId) return -1;
+        if (a.residentId > b.residentId) return 1;
+        if (a.date < b.date) return -1;
+        if (a.date > b.date) return 1;
+        return 0;
+      });
+
+    const title = 'ElderWatch Check-in Report';
+    const periodLabel = reportPeriod === 'weekly' ? 'Last 7 days' : 'Last 30 days';
+    const rangeLabel = `${start} to ${end}`;
+
+    const printWindow = window.open('', '_blank', 'width=900,height=800');
+    if (!printWindow) {
+      alert('Pop-up blocked. Please allow pop-ups for this site to download reports.');
+      return;
+    }
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <title>${title}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 24px; color: #1f2937; }
+    .page { max-width: 800px; margin: 0 auto; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .meta { color: #6b7280; font-size: 13px; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; }
+    th { background: #f3f4f6; font-weight: 600; }
+    tr:nth-child(even) { background: #f9fafb; }
+    .footer { margin-top: 16px; font-size: 11px; color: #9ca3af; }
+    @media print {
+      body { padding: 0; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
+        <h1>${title}</h1>
+        <div class="meta">${home.name} — ${periodLabel} — ${rangeLabel}</div>
+      </div>
+      <div class="no-print">
+        <button onclick="window.print()" style="padding:10px 16px;background:#157A4C;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Save as PDF</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Resident</th>
+          <th>Room</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th>Time</th>
+          <th>Updated By</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map((r: any) => {
+          const time = r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+          return `<tr>
+            <td>${r.residentId || ''}</td>
+            <td>${r.roomNumber || ''}</td>
+            <td>${r.date || ''}</td>
+            <td>${r.status || ''}</td>
+            <td>${time}</td>
+            <td>${r.updatedBy || ''}</td>
+          </tr>`;
+        }).join('\n')}
+      </tbody>
+    </table>
+    <div class="footer">Total records: ${rows.length} — Generated by ElderWatch</div>
+  </div>
+  <script>window.onload = function(){ window.focus(); }</script>
+</body>
+</html>`;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   // Trigger morning reset - resets all residents to 'awaiting'
@@ -1745,7 +1799,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
 
               <p className={`text-xs leading-relaxed mb-4 ${isNight ? 'text-slate-400' : 'text-slate-600'}`}>
-                Generate a CSV report of check-ins for this home. You can email this file directly to staff or keep it for records.
+                Generate a PDF report of check-ins for this home. You can email this file directly to staff or keep it for records.
               </p>
 
               <div className="flex flex-wrap items-center gap-3">
@@ -1764,7 +1818,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   disabled={reportLoading}
                   className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition cursor-pointer disabled:opacity-50"
                 >
-                  {reportLoading ? 'Generating...' : 'Generate CSV Report'}
+                  {reportLoading ? 'Generating...' : 'Generate PDF Report'}
                 </button>
               </div>
 
@@ -1775,11 +1829,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
               )}
 
-              {reportCsv && !reportError && (
+              {reportRows && !reportError && (
                 <div className="mt-5 space-y-3">
                   <div className={`p-4 rounded-2xl border text-xs ${isNight ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
                     <p className="font-bold mb-1">Report ready</p>
-                    <p>File: <span className="font-mono">{reportFileName}</span></p>
+                    <p>Records: <span className="font-mono">{reportRows.length}</span></p>
                     <p className="mt-1 opacity-75">Contains resident check-ins from the selected period.</p>
                   </div>
                   <button
@@ -1787,7 +1841,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm transition cursor-pointer flex items-center gap-2"
                   >
                     <Download className="w-4 h-4" />
-                    Download CSV
+                    Download PDF
                   </button>
                 </div>
               )}
