@@ -1,5 +1,5 @@
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
-import { getFirestore, FieldValue, Query, QueryConstraint } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';

@@ -6,6 +6,7 @@ import { DeviceLinkScreen } from './components/DeviceLinkScreen';
 import { OfflineIndicator } from './components/PWAInstallButton';
 import { ThemeToggle, useAppTheme } from './components/ThemeToggle';
 import { StaffUser, Home, DeviceBinding } from './types';
+import { auth, logout, onAuthChange } from './lib/firebase';
 
 export default function App() {
   // Routes: 'admin' | 'checkin' | 'link'
@@ -34,17 +35,38 @@ export default function App() {
 
   // Restore staff session if present
   useEffect(() => {
-    try {
-      const savedAuth = localStorage.getItem('elderwatch_staff_auth');
-      if (savedAuth) {
-        const { token, user, home } = JSON.parse(savedAuth);
-        setStaffToken(token);
-        setStaffUser(user);
-        setStaffHome(home);
+    // Listen for Firebase Auth state changes
+    const unsubscribe = onAuthChange(async (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in - get fresh token
+        const token = await firebaseUser.getIdToken();
+        
+        // Check if we have stored user data
+        try {
+          const savedAuth = localStorage.getItem('elderwatch_staff_auth');
+          if (savedAuth) {
+            const { user, home } = JSON.parse(savedAuth);
+            // Verify the stored user matches the current Firebase user
+            if (user.id === firebaseUser.uid) {
+              setStaffToken(token);
+              setStaffUser(user);
+              setStaffHome(home);
+              return;
+            }
+          }
+        } catch (e) {
+          console.error('Failed to parse saved auth:', e);
+        }
+      } else {
+        // User is signed out
+        setStaffToken(null);
+        setStaffUser(null);
+        setStaffHome(null);
+        localStorage.removeItem('elderwatch_staff_auth');
       }
-    } catch (e) {
-      console.error('Failed to parse saved auth:', e);
-    }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Listen for browser URL back/forward
@@ -87,7 +109,8 @@ export default function App() {
     );
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await logout();
     setStaffToken(null);
     setStaffUser(null);
     setStaffHome(null);

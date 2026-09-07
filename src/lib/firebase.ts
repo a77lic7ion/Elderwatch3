@@ -11,6 +11,13 @@ import {
   Firestore,
   Unsubscribe,
 } from 'firebase/firestore';
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+} from 'firebase/auth';
 import { CheckIn, Resident } from '../types';
 
 interface EnvMeta {
@@ -43,6 +50,22 @@ export const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(
 
 // Initialize Firestore
 export const db: Firestore = getFirestore(app);
+
+// Initialize Firebase Auth
+export const auth = getAuth(app);
+
+// Auth helper functions
+export async function loginWithEmail(email: string, password: string) {
+  return signInWithEmailAndPassword(auth, email, password);
+}
+
+export async function logout() {
+  return signOut(auth);
+}
+
+export function onAuthChange(callback: (user: FirebaseUser | null) => void) {
+  return onAuthStateChanged(auth, callback);
+}
 
 // Connection state tracking
 export interface FirebaseConnectionStatus {
