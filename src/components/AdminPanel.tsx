@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Users,
   Activity,
@@ -165,6 +165,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     return { total, ok, notOk, noResponse, awaiting, linked, urgentTotal: notOk + noResponse };
   }, [residents]);
+
+  // Alert sound when a resident presses Help (not_ok status appears)
+  const prevNotOkRef = useRef(stats.notOk);
+  useEffect(() => {
+    // If notOk count increased, a new help alert came in
+    if (stats.notOk > prevNotOkRef.current && soundEnabled) {
+      console.log('[ElderWatch] New help alert detected - playing sound');
+      playEmergencyAlertSound();
+      // Also vibrate if available
+      if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200, 100, 200]);
+      }
+    }
+    prevNotOkRef.current = stats.notOk;
+  }, [stats.notOk, soundEnabled]);
 
   // SORT WORST-FIRST RULE:
   // 1. Red (not_ok) at TOP
