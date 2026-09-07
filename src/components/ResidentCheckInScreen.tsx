@@ -562,7 +562,7 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
   if (view === 'lang_select') {
     return (
       <div style={{ 
-        width: '100vw', height: '100vh', height: '100dvh',
+        width: '100vw', height: '100dvh',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         padding: '24px', fontFamily: '"Atkinson Hyperlegible", sans-serif',
         background: '#1A221E', color: '#F7FAFC'
@@ -606,7 +606,7 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
   // Main check-in screen
   return (
     <div style={{ 
-      width: '100vw', height: '100vh', height: '100dvh',
+      width: '100vw', height: '100dvh',
       display: 'flex', flexDirection: 'column',
       fontFamily: '"Atkinson Hyperlegible", sans-serif',
       background: '#1A221E', color: '#F7FAFC',

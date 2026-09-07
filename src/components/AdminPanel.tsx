@@ -581,20 +581,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     Connecting...
                   </span>
                 )}
-                <button
-                  onClick={() => setIsEvaluationModalOpen(true)}
-                  title={`Firebase: ${firebaseConfig.projectId}`}
-                  className="hidden sm:flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200/80 cursor-pointer hover:bg-amber-100 transition"
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      firestoreConnected ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
-                    }`}
-                  />
+                <span className="hidden sm:flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-200/80">
                   <span className="hidden md:inline font-mono text-[10px]">
                     {firebaseConfig.projectId}
                   </span>
-                </button>
+                </span>
               </div>
               {user.role === 'admin' && allHomes.length > 1 ? (
                 <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
