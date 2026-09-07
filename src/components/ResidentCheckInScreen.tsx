@@ -166,8 +166,9 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
         setDeviceBinding(parsed);
         const nameParts = parsed.residentName.split(' ');
         const initials = nameParts.length > 1 ? `${nameParts[0][0]}${nameParts[1][0]}` : nameParts[0].substring(0, 2);
+        const firstName = parsed.residentName.split(' ')[0] || parsed.residentName;
         setResidentProfile({
-          name: parsed.residentName.split(' ')[0] || parsed.residentName,
+          name: firstName,
           room: `Room ${parsed.roomNumber}`,
           unit: parsed.unitNumber,
           wing: parsed.homeName || 'Village',
@@ -175,6 +176,9 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
           sisterInitials: initials.toUpperCase(),
           phone: '',
         });
+
+        // Update document title for PWA home screen shortcut
+        document.title = `${firstName} - Room ${parsed.roomNumber}`;
 
         const todayStr = new Date().toISOString().split('T')[0];
         const existingCheckin = localStorage.getItem(`elderwatch_checkin_${parsed.residentId}_${todayStr}`);
@@ -304,8 +308,9 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
 
         const nameParts = binding.residentName.split(' ');
         const initials = nameParts.length > 1 ? `${nameParts[0][0]}${nameParts[1][0]}` : nameParts[0].substring(0, 2);
+        const firstName = binding.residentName.split(' ')[0] || binding.residentName;
         setResidentProfile({
-          name: binding.residentName.split(' ')[0] || binding.residentName,
+          name: firstName,
           room: `Room ${binding.roomNumber}`,
           unit: binding.unitNumber,
           wing: homeName,
@@ -313,6 +318,9 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
           sisterInitials: initials.toUpperCase(),
           phone: '',
         });
+
+        // Update document title for PWA home screen shortcut
+        document.title = `${firstName} - Room ${binding.roomNumber}`;
 
         // Check if language is already set
         const savedLang = localStorage.getItem('ew_lang');

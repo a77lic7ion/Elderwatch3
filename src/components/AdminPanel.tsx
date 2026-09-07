@@ -929,7 +929,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       >
                         {/* Top card bar */}
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span
                               className={`text-xs font-mono font-bold px-2.5 py-1 rounded-lg ${
                                 isNotOk
@@ -941,7 +941,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                   : 'bg-emerald-600 text-white'
                               }`}
                             >
-                              ROOM {resident.roomNumber}
+                              {resident.roomNumber}{resident.unitNumber ? ` / ${resident.unitNumber}` : ''}
                             </span>
 
                             {resident.isDeviceLinked ? (
@@ -993,6 +993,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <p className={`text-xs mt-0.5 ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
                             {resident.phone || 'No phone recorded'}
                           </p>
+                          {resident.notes && (
+                            <p className={`text-[11px] mt-1 line-clamp-2 italic ${isNight ? 'text-slate-500' : 'text-slate-400'}`}>
+                              {resident.notes}
+                            </p>
+                          )}
                         </div>
 
                         {/* Check-in time / Notes */}
