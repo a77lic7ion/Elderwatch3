@@ -130,12 +130,13 @@ export default async function handler(req, res) {
         name: { stringValue: name },
         email: { stringValue: email.toLowerCase() },
         role: { stringValue: role },
+        passwordHash: { stringValue: password || '' },
         createdAt: { stringValue: new Date().toISOString() },
       }
     };
 
     const fsRes = await fetch(
-      `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/staff/${uid}?updateMask.fieldPaths=id&updateMask.fieldPaths=homeId&updateMask.fieldPaths=name&updateMask.fieldPaths=email&updateMask.fieldPaths=role&updateMask.fieldPaths=createdAt`,
+      `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/staff/${uid}?updateMask.fieldPaths=id&updateMask.fieldPaths=homeId&updateMask.fieldPaths=name&updateMask.fieldPaths=email&updateMask.fieldPaths=role&updateMask.fieldPaths=passwordHash&updateMask.fieldPaths=createdAt`,
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },

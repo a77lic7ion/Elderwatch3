@@ -154,71 +154,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     fetchAllHomes();
   }, [fetchResidents, fetchLogs, fetchAllHomes]);
 
-  // Connect to Server-Sent Events (SSE) for zero-latency real-time updates
-  useEffect(() => {
-    const sseUrl = `/api/realtime?homeId=${home.id}&token=${token}`;
-    const eventSource = new EventSource(sseUrl);
-
-    eventSource.onopen = () => {
-      setRealtimeConnected(true);
-    };
-
-    eventSource.addEventListener('checkin_updated', () => {
-      fetchResidents();
-      fetchLogs();
-    });
-
-    eventSource.addEventListener('urgent_alert', (e: MessageEvent) => {
-      try {
-        const payload = JSON.parse(e.data);
-        if (soundEnabled) {
-          playEmergencyAlertSound();
-        }
-        setUrgentAlertBanner({
-          text: payload.alertText || 'Urgent alert received!',
-          room: payload.roomNumber || '',
-          residentName: payload.residentName || '',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        });
-        fetchResidents();
-        fetchLogs();
-      } catch (err) {
-        console.error('Error handling SSE urgent alert:', err);
-      }
-    });
-
-    eventSource.addEventListener('reminder_sent', () => {
-      fetchLogs();
-    });
-
-    eventSource.addEventListener('home_updated', (e: MessageEvent) => {
-      try {
-        const payload = JSON.parse(e.data);
-        if (payload.home) setHome(payload.home);
-      } catch {
-        // ignore
-      }
-    });
-
-    eventSource.onerror = () => {
-      setRealtimeConnected(false);
-    };
-
-    // Polling fallback every 6 seconds in case SSE disconnects
-    const fallbackInterval = setInterval(() => {
-      fetchResidents();
-    }, 6000);
-
-    return () => {
-      eventSource.close();
-      clearInterval(fallbackInterval);
-    };
-  }, [home.id, token, soundEnabled, fetchResidents, fetchLogs]);
-
   // Firestore Real-Time Listener (Direct Firebase Sync for frailcare-checkin)
   useEffect(() => {
     validateFirestoreConnection().then((res) => {
       setFirestoreConnected(res.connected);
+      setRealtimeConnected(res.connected);
     });
 
     const todayStr = new Date().toISOString().split('T')[0];

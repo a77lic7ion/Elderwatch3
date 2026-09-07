@@ -49,7 +49,7 @@ export async function fetchAdminOverview() {
   const staffWithHome = staff.map((s: any) => ({
     ...s,
     homeName: homes.find((h: any) => h.id === s.homeId)?.name || 'Unassigned',
-    password: s.passwordHash || '',
+    password: s.passwordHash || s.password || '',
   }));
 
   return {
@@ -166,20 +166,30 @@ export async function addResident(homeId: string, name: string, roomNumber: stri
     createdAt: new Date().toISOString(),
   };
   
-  await setDoc(doc(db, 'residents', id), newResident);
+  try {
+    await setDoc(doc(db, 'residents', id), newResident);
+  } catch (err) {
+    console.error('Firestore write error (residents):', err);
+    throw err;
+  }
   
   // Initialize today's checkin
   const today = getTodaySAST();
   const checkinId = `${homeId}_${id}_${today}`;
-  await setDoc(doc(db, 'checkins', checkinId), {
-    id: checkinId,
-    homeId,
-    residentId: id,
-    date: today,
-    status: 'awaiting',
-    timestamp: new Date().toISOString(),
-    updatedBy: 'morning_job',
-  });
+  try {
+    await setDoc(doc(db, 'checkins', checkinId), {
+      id: checkinId,
+      homeId,
+      residentId: id,
+      date: today,
+      status: 'awaiting',
+      timestamp: new Date().toISOString(),
+      updatedBy: 'morning_job',
+    });
+  } catch (err) {
+    console.error('Firestore write error (checkins):', err);
+    throw err;
+  }
   
   return newResident;
 }

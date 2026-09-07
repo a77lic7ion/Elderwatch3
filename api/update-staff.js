@@ -99,11 +99,12 @@ export default async function handler(req, res) {
         name: { stringValue: name },
         email: { stringValue: email.toLowerCase() },
         role: { stringValue: role },
+        ...(password ? { passwordHash: { stringValue: password } } : {}),
       }
     };
 
     await fetch(
-      `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/staff/${staffId}?updateMask.fieldPaths=homeId&updateMask.fieldPaths=name&updateMask.fieldPaths=email&updateMask.fieldPaths=role`,
+      `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/staff/${staffId}?updateMask.fieldPaths=homeId&updateMask.fieldPaths=name&updateMask.fieldPaths=email&updateMask.fieldPaths=role${password ? '&updateMask.fieldPaths=passwordHash' : ''}`,
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
