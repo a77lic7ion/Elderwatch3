@@ -1,0 +1,68 @@
+{
+  "homes": {
+    "home-methodist-1": {
+      "id": "home-methodist-1",
+      "name": "Methodist Home 1",
+      "cutoffTime": "09:15",
+      "timezone": "Africa/Johannesburg",
+      "createdAt": "2026-09-03T20:00:00.000Z"
+    },
+    "home-1788765543368-4gfn": {
+      "id": "home-1788765543368-4gfn",
+      "name": "Quandum Village",
+      "cutoffTime": "09:00",
+      "timezone": "Africa/Johannesburg",
+      "createdAt": "2026-09-07T07:19:03.368Z"
+    }
+  },
+  "staff": {
+    "admin-shaun": {
+      "id": "admin-shaun",
+      "homeId": "home-methodist-1",
+      "name": "Shaun Gordon",
+      "email": "shaunwgordon@gmail.com",
+      "passwordHash": "B33tl3sL1lly@123",
+      "role": "admin"
+    },
+    "staff-mary": {
+      "id": "staff-mary",
+      "homeId": "home-methodist-1",
+      "name": "Mary Nurse",
+      "email": "marynurse@methodist.care",
+      "passwordHash": "Marynurse@123",
+      "role": "nurse"
+    },
+    "staff-1788765666857-uu05": {
+      "id": "staff-1788765666857-uu05",
+      "homeId": "home-1788765543368-4gfn",
+      "name": "Neeri",
+      "email": "neeri@gmail.com",
+      "passwordHash": "Neeri@123",
+      "role": "nurse"
+    }
+  },
+  "residents": {},
+  "checkins": {},
+  "jobLogs": [
+    {
+      "id": "job-1788670818881-7gyj",
+      "homeId": "home-methodist-1",
+      "jobType": "morning_reset",
+      "description": "07:00 SAST Morning Reset: 0 residents reset to \"awaiting\"",
+      "residentsAffected": 0,
+      "timestamp": "2026-09-06T05:00:18.881Z"
+    }
+  ],
+  "pushLogs": [
+    {
+      "id": "push-1788670818881-gkju",
+      "homeId": "home-methodist-1",
+      "targetType": "all_awaiting",
+      "recipientName": "All Methodist Home 1 Residents",
+      "title": "ElderWatch Morning Check-in",
+      "body": "Good morning! Please tap your screen to confirm you are safe and well.",
+      "timestamp": "2026-09-06T05:00:18.881Z",
+      "status": "delivered"
+    }
+  ]
+}
