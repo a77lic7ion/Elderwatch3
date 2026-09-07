@@ -567,8 +567,10 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
           </div>
           
           <div>
-            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 700 }}>Choose your language</h1>
-            <p style={{ margin: '8px 0 0', fontSize: '18px', opacity: 0.7 }}>Kies jou taal</p>
+            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 700 }}>{t.linkedTitle(residentProfile.name)}</h1>
+            <p style={{ margin: '12px 0 0', fontSize: '18px', opacity: 0.7 }}>{t.linkedBody}</p>
+            <p style={{ margin: '24px 0 0', fontSize: '20px', fontWeight: 600 }}>{t.langTitle}</p>
+            <p style={{ margin: '4px 0 0', fontSize: '16px', opacity: 0.6 }}>{t.langSub}</p>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
