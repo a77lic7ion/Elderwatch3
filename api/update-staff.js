@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       const docData = await getRes.json();
       if (docData.fields) {
         for (const [k, v] of Object.entries(docData.fields)) {
-          existing[k] = (v as any).stringValue || (v as any).integerValue || '';
+          existing[k] = v.stringValue || v.integerValue || '';
         }
       }
     } catch {}
