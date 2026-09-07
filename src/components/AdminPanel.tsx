@@ -27,6 +27,8 @@ import {
   Building,
   Upload,
   Link2,
+  Menu,
+  X,
 } from 'lucide-react';
 import { ResidentTodayView, Home, StaffUser, JobExecutionLog, PushNotificationRecord } from '../types';
 import { playEmergencyAlertSound } from '../utils/audioAlert';
@@ -65,6 +67,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [activeTab, setActiveTab] = useState<'overview' | 'dashboard' | 'residents' | 'linking' | 'settings'>(
     user.role === 'admin' ? 'overview' : 'dashboard'
   );
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [home, setHome] = useState<Home>(initialHome);
   const [residents, setResidents] = useState<ResidentTodayView[]>([]);
   const [loading, setLoading] = useState(true);
@@ -441,23 +444,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
           {/* Brand & Home Scope */}
-          <div className="flex items-center gap-3">
-            <img src="/elderwatch-logo.png" alt="ElderWatch" className="w-10 h-10 rounded-2xl shadow-md" />
-            <div>
-              <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <img src="/elderwatch-logo.png" alt="ElderWatch" className="w-10 h-10 rounded-2xl shadow-md shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className={`font-extrabold text-base sm:text-lg tracking-tight ${isNight ? 'text-white' : 'text-slate-900'}`}>
                   ElderWatch
                 </h1>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span className="hidden sm:inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                   STAFF PORTAL
                 </span>
                 {realtimeConnected ? (
-                  <span className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
+                  <span className="hidden sm:flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     Live
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                  <span className="hidden sm:flex items-center gap-1 text-[11px] text-slate-400">
                     <span className="w-2 h-2 rounded-full bg-slate-300" />
                     Connecting...
                   </span>
@@ -465,21 +468,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <button
                   onClick={() => setIsEvaluationModalOpen(true)}
                   title={`Firebase: ${firebaseConfig.projectId}`}
-                  className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200/80 cursor-pointer hover:bg-amber-100 transition"
+                  className="hidden sm:flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200/80 cursor-pointer hover:bg-amber-100 transition"
                 >
                   <span
                     className={`w-2 h-2 rounded-full ${
                       firestoreConnected ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
                     }`}
                   />
-                  <span className="hidden sm:inline font-mono text-[10px]">
+                  <span className="hidden md:inline font-mono text-[10px]">
                     {firebaseConfig.projectId}
                   </span>
                 </button>
               </div>
               {user.role === 'admin' && allHomes.length > 1 ? (
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <Building className="w-3.5 h-3.5 text-emerald-500" />
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  <Building className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                   <select
                     value={home.id}
                     onChange={(e) => {
@@ -490,7 +493,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         setCutoffTimeInput(selected.cutoffTime);
                       }
                     }}
-                    className={`text-xs font-bold py-0.5 px-2 rounded-lg border focus:outline-hidden cursor-pointer ${
+                    className={`text-xs font-bold py-0.5 px-2 rounded-lg border focus:outline-hidden cursor-pointer max-w-[180px] ${
                       isNight
                         ? 'bg-slate-900 border-slate-700 text-emerald-300'
                         : 'bg-white border-slate-300 text-emerald-800'
@@ -502,21 +505,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </option>
                     ))}
                   </select>
-                  <span className="text-[10px] text-slate-400">Cutoff: {home.cutoffTime} SAST</span>
+                  <span className="text-[10px] text-slate-400 hidden sm:inline">Cutoff: {home.cutoffTime} SAST</span>
                 </div>
               ) : (
-                <p className={`text-xs font-medium flex items-center gap-1 ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
-                  <Building className="w-3 h-3 text-slate-400" />
-                  <span>{home.name}</span>
-                  <span className="text-slate-300">•</span>
-                  <span>Cutoff: {home.cutoffTime} SAST</span>
+                <p className={`text-xs font-medium flex items-center gap-1 truncate ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <Building className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span className="truncate">{home.name}</span>
+                  <span className="text-slate-300 hidden sm:inline">•</span>
+                  <span className="hidden sm:inline">Cutoff: {home.cutoffTime} SAST</span>
                 </p>
               )}
             </div>
           </div>
 
           {/* Quick Actions & Navigation Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Dark Theme Switcher Icon */}
             <ThemeToggle />
 
@@ -547,10 +550,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             {/* Switch to Resident Screen */}
             <button
               onClick={onNavigateToResidentScreen}
-              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm flex items-center gap-1.5 transition cursor-pointer"
+              className="hidden sm:flex px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm items-center gap-1.5 transition cursor-pointer"
             >
               <Smartphone className="w-3.5 h-3.5" />
-              <span>Resident View</span>
+              <span className="hidden md:inline">Resident View</span>
             </button>
 
             {/* User & Logout */}
@@ -571,12 +574,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             >
               <LogOut className="w-4 h-4" />
             </button>
+
+            {/* Hamburger Menu - Mobile only */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              title="Menu"
+              className={`md:hidden p-2 rounded-xl border transition cursor-pointer ${
+                isNight
+                  ? 'border-slate-800 hover:bg-slate-800 text-slate-300'
+                  : 'border-slate-200 hover:bg-slate-100 text-slate-600'
+              }`}
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
           </div>
         </div>
 
-        {/* PRIMARY TAB NAVIGATION */}
+        {/* PRIMARY TAB NAVIGATION - Desktop horizontal tabs */}
         <div
-          className={`max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 border-t overflow-x-auto ${
+          className={`hidden md:flex max-w-7xl mx-auto px-4 sm:px-6 items-center gap-1 border-t overflow-x-auto ${
             isNight ? 'border-slate-800' : 'border-slate-100'
           }`}
         >
@@ -680,7 +696,188 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <span>Home Settings & Daily Cycle</span>
           </button>
         </div>
+
+        {/* PRIMARY TAB NAVIGATION - Mobile current tab indicator + dropdown */}
+        <div
+          className={`md:hidden max-w-7xl mx-auto px-4 border-t ${
+            isNight ? 'border-slate-800' : 'border-slate-100'
+          }`}
+        >
+          <div
+            className={`flex items-center justify-between py-3 ${
+              isNight ? 'text-white' : 'text-slate-900'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {activeTab === 'overview' && <Shield className="w-4 h-4 text-purple-400" />}
+              {activeTab === 'dashboard' && <Activity className="w-4 h-4 text-emerald-500" />}
+              {activeTab === 'residents' && <Users className="w-4 h-4 text-emerald-500" />}
+              {activeTab === 'linking' && <Link2 className="w-4 h-4 text-emerald-500" />}
+              {activeTab === 'settings' && <Settings className="w-4 h-4 text-emerald-500" />}
+              <span className="text-sm font-bold">
+                {activeTab === 'overview' && 'All Homes & Staff Overview'}
+                {activeTab === 'dashboard' && 'Live Status Dashboard'}
+                {activeTab === 'residents' && 'Resident Management'}
+                {activeTab === 'linking' && 'Device Pairing'}
+                {activeTab === 'settings' && 'Home Settings & Daily Cycle'}
+              </span>
+              {activeTab === 'dashboard' && stats.notOk > 0 && (
+                <span className="bg-rose-600 text-white font-bold text-[10px] px-1.5 py-0.2 rounded-full animate-pulse">
+                  {stats.notOk}
+                </span>
+              )}
+              {activeTab === 'residents' && (
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  isNight ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {stats.total}
+                </span>
+              )}
+              {activeTab === 'linking' && (
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  isNight ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {stats.linked}/{stats.total}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
       </header>
+
+      {/* Mobile Dropdown Menu */}
+      {mobileMenuOpen && (
+        <div
+          className={`md:hidden border-b shadow-lg ${
+            isNight ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}
+        >
+          <div className="max-w-7xl mx-auto px-4 py-2 space-y-1">
+            {user.role === 'admin' && (
+              <button
+                onClick={() => { setActiveTab('overview'); setMobileMenuOpen(false); }}
+                className={`w-full px-4 py-3 text-sm font-bold rounded-xl flex items-center gap-3 transition cursor-pointer ${
+                  activeTab === 'overview'
+                    ? isNight
+                      ? 'bg-purple-950/60 text-purple-300'
+                      : 'bg-purple-50 text-purple-700'
+                    : isNight
+                    ? 'text-slate-300 hover:bg-slate-800'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <Shield className="w-4 h-4 text-purple-400" />
+                <span>All Homes & Staff Overview</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => { setActiveTab('dashboard'); setMobileMenuOpen(false); }}
+              className={`w-full px-4 py-3 text-sm font-bold rounded-xl flex items-center justify-between transition cursor-pointer ${
+                activeTab === 'dashboard'
+                  ? isNight
+                    ? 'bg-emerald-950/60 text-emerald-300'
+                    : 'bg-emerald-50 text-emerald-700'
+                  : isNight
+                  ? 'text-slate-300 hover:bg-slate-800'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Activity className="w-4 h-4 text-emerald-500" />
+                <span>Live Status Dashboard</span>
+              </div>
+              {stats.notOk > 0 && (
+                <span className="bg-rose-600 text-white font-bold text-[10px] px-1.5 py-0.2 rounded-full animate-pulse">
+                  {stats.notOk}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('residents'); setMobileMenuOpen(false); }}
+              className={`w-full px-4 py-3 text-sm font-bold rounded-xl flex items-center justify-between transition cursor-pointer ${
+                activeTab === 'residents'
+                  ? isNight
+                    ? 'bg-emerald-950/60 text-emerald-300'
+                    : 'bg-emerald-50 text-emerald-700'
+                  : isNight
+                  ? 'text-slate-300 hover:bg-slate-800'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4 text-emerald-500" />
+                <span>Resident Management</span>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                isNight ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {stats.total}
+              </span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('linking'); setMobileMenuOpen(false); }}
+              className={`w-full px-4 py-3 text-sm font-bold rounded-xl flex items-center justify-between transition cursor-pointer ${
+                activeTab === 'linking'
+                  ? isNight
+                    ? 'bg-emerald-950/60 text-emerald-300'
+                    : 'bg-emerald-50 text-emerald-700'
+                  : isNight
+                  ? 'text-slate-300 hover:bg-slate-800'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Link2 className="w-4 h-4 text-emerald-500" />
+                <span>Device Pairing</span>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                isNight ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
+              }`}>
+                {stats.linked}/{stats.total}
+              </span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('settings'); setMobileMenuOpen(false); }}
+              className={`w-full px-4 py-3 text-sm font-bold rounded-xl flex items-center gap-3 transition cursor-pointer ${
+                activeTab === 'settings'
+                  ? isNight
+                    ? 'bg-emerald-950/60 text-emerald-300'
+                    : 'bg-emerald-50 text-emerald-700'
+                  : isNight
+                  ? 'text-slate-300 hover:bg-slate-800'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <Settings className="w-4 h-4 text-emerald-500" />
+              <span>Home Settings & Daily Cycle</span>
+            </button>
+
+            {/* Resident View button in mobile menu */}
+            <button
+              onClick={() => { onNavigateToResidentScreen(); setMobileMenuOpen(false); }}
+              className={`w-full px-4 py-3 text-sm font-bold rounded-xl flex items-center gap-3 transition cursor-pointer sm:hidden ${
+                isNight
+                  ? 'text-emerald-300 hover:bg-slate-800'
+                  : 'text-emerald-700 hover:bg-slate-100'
+              }`}
+            >
+              <Smartphone className="w-4 h-4" />
+              <span>Switch to Resident Screen</span>
+            </button>
+
+            <div className={`h-px my-1 ${isNight ? 'bg-slate-800' : 'bg-slate-200'}`} />
+
+            <div className={`px-4 py-2 text-xs ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
+              Signed in as <span className={`font-bold ${isNight ? 'text-slate-200' : 'text-slate-800'}`}>{user.name}</span>
+              <span className="ml-1 capitalize">({user.role})</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TAB CONTENT CONTAINER */}
       <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-6">
