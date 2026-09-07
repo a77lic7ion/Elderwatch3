@@ -187,6 +187,14 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
           if (pc.status === 'ok') { setView('ok'); setCheckInTime(new Date(pc.timestamp)); }
           else if (pc.status === 'not_ok') { setView('help'); setHelpTime(new Date(pc.timestamp)); }
         }
+
+        // If no language has been chosen yet, prompt for it now.
+        // This covers the /link pairing flow where permanentResidentId
+        // may not be present, so the later auto-bind language check is skipped.
+        const savedLang = localStorage.getItem('ew_lang');
+        if (!savedLang && view !== 'ok' && view !== 'help') {
+          setView('lang_select');
+        }
       }
     } catch (e) {
       console.error('Error loading device state:', e);
