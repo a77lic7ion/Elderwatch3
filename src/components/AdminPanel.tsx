@@ -419,16 +419,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  // Regenerate Link Code
-  const handleRegenerateLinkCode = async (residentId: string, roomNumber: string, residentName: string) => {
-    if (!confirm(`Regenerate link code for "${residentName}"? This will invalidate any existing pairing.`)) return;
+  // Open the QR pairing modal — the modal auto-generates a code on open
+  // and exposes a "Rotate Pairing URL" action inside the modal itself.
+  const handleOpenPairModal = (resident: ResidentTodayView) => {
+    setSelectedResidentForQR(resident);
+  };
+
+  // Manual rotation (kept for compatibility with batch operations)
+  const handleRotateLinkCode = async (residentId: string, roomNumber: string, residentName: string) => {
+    if (!confirm(`Rotate pairing URL for "${residentName}"? The old QR code will stop working immediately.`)) return;
     try {
       const { regenerateLinkCode } = await import('../lib/firebase-api');
-      const newCode = await regenerateLinkCode(residentId, roomNumber);
-      alert(`New link code for ${residentName}: ${newCode}`);
+      await regenerateLinkCode(residentId, roomNumber);
       fetchResidents();
     } catch (err) {
-      alert('Failed to regenerate code: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      alert('Failed to rotate pairing URL: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 
@@ -1293,8 +1298,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   onClick={handleBatchLinkCodes}
                   className={`px-3 py-2.5 rounded-xl border font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${isNight ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'}`}
                 >
-                  <Link2 className="w-4 h-4" />
-                  <span>Export Link Codes</span>
+                  <QrCode className="w-4 h-4" />
+                  <span>Export Pairing QR Codes</span>
                 </button>
                 <button
                   onClick={() => {
@@ -1317,8 +1322,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <tr>
                       <th className="py-3 px-4">Room</th>
                       <th className="py-3 px-4">Resident Name</th>
-                      <th className="py-3 px-4">Phone</th>
-                      <th className="py-3 px-4">Link Code</th>
+                      <th className="py-3 px-4 hidden md:table-cell">Phone</th>
                       <th className="py-3 px-4">Device Status</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
@@ -1327,21 +1331,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     {residents.map((r) => (
                       <tr key={r.id} className={`transition ${isNight ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50/80'}`}>
                         <td className={`py-3.5 px-4 font-mono font-bold ${isNight ? 'text-white' : 'text-slate-900'}`}>
-                          {r.roomNumber}
+                          <div className="flex flex-col">
+                            <span>{r.roomNumber}</span>
+                            {r.unitNumber && (
+                              <span className={`text-[10px] font-mono font-normal ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
+                                Unit {r.unitNumber}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className={`py-3.5 px-4 font-bold ${isNight ? 'text-white' : 'text-slate-900'}`}>
                           {r.name}
-                          {r.emergencyContact && (
-                            <div className={`text-[10px] font-normal ${isNight ? 'text-slate-400' : 'text-slate-400'}`}>EC: {r.emergencyContact}</div>
+                          {r.emergencyContactName && (
+                            <div className={`text-[10px] font-normal ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
+                              EC: {r.emergencyContactName}
+                              {r.emergencyContactRelation && ` (${r.emergencyContactRelation})`}
+                              {r.emergencyContactNumber && ` — ${r.emergencyContactNumber}`}
+                            </div>
+                          )}
+                          {r.notes && !r.emergencyContactName && (
+                            <div className={`text-[10px] font-normal italic ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
+                              {r.notes}
+                            </div>
                           )}
                         </td>
-                        <td className={`py-3.5 px-4 ${isNight ? 'text-slate-300' : 'text-slate-600'}`}>
+                        <td className={`py-3.5 px-4 hidden md:table-cell ${isNight ? 'text-slate-300' : 'text-slate-600'}`}>
                           {r.phone || '—'}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className={`font-mono text-[11px] px-2 py-0.5 rounded ${isNight ? 'bg-slate-800 border border-slate-700 text-slate-300' : 'bg-slate-100 border border-slate-200'}`}>
-                            {r.oneTimeLinkCode || (r.isDeviceLinked ? 'Paired' : '—')}
-                          </span>
                         </td>
                         <td className="py-3.5 px-4">
                           {r.isDeviceLinked ? (
@@ -1357,15 +1372,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <td className="py-3.5 px-4 text-right space-x-1">
                           <button
                             onClick={() => setSelectedResidentForQR(r)}
-                            className={`p-1.5 rounded-lg border transition cursor-pointer ${isNight ? 'border-slate-700 hover:bg-slate-700 text-slate-400' : 'border-slate-200 hover:bg-slate-100 text-slate-600'}`}
-                            title="Pair Device"
+                            className={`p-1.5 rounded-lg border transition cursor-pointer ${isNight ? 'border-slate-700 hover:bg-emerald-950/50 text-emerald-400' : 'border-slate-200 hover:bg-emerald-50 text-emerald-600'}`}
+                            title="Pair Device (QR code)"
                           >
-                            <Link2 className="w-3.5 h-3.5" />
+                            <QrCode className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => handleRegenerateLinkCode(r.id, r.roomNumber, r.name)}
+                            onClick={() => handleRotateLinkCode(r.id, r.roomNumber, r.name)}
                             className={`p-1.5 rounded-lg border transition cursor-pointer ${isNight ? 'border-slate-700 hover:bg-amber-950/50 text-amber-400' : 'border-slate-200 hover:bg-amber-50 text-amber-600'}`}
-                            title="Regenerate Link Code"
+                            title="Rotate Pairing URL (invalidates old QR)"
                           >
                             <RefreshCw className="w-3.5 h-3.5" />
                           </button>

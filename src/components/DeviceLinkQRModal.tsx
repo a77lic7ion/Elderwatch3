@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Copy, Check, ExternalLink, Link2, Smartphone, RefreshCw, QrCode, Download, Printer } from 'lucide-react';
+import { X, Copy, Check, Link2, Smartphone, RefreshCw, QrCode, Download, Printer } from 'lucide-react';
 import QRCode from 'qrcode';
 import { ResidentTodayView } from '../types';
 
@@ -20,17 +20,41 @@ export const DeviceLinkQRModal: React.FC<DeviceLinkQRModalProps> = ({
   const [copiedAuto, setCopiedAuto] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [currentCode, setCurrentCode] = useState(resident.oneTimeLinkCode || '');
+  const [autoGenerating, setAutoGenerating] = useState(!resident.oneTimeLinkCode);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const permanentUrl = `${origin}/checkin/${resident.id}`;
 
-  // The auto-pair URL embeds the one-time link code so scanning the QR
-  // and opening the URL on the resident's phone completes the pair in one step.
+  // The auto-pair URL embeds the one-time link code as a single-use token.
+  // Scanning the QR and opening the link completes link + pair in one step.
   const autoPairUrl = currentCode
     ? `${origin}/checkin/${resident.id}?pair=${encodeURIComponent(currentCode)}`
     : '';
+
+  // Auto-generate a code immediately if the resident doesn't have one yet,
+  // so the QR code is ready the moment the modal opens — no manual
+  // "Regenerate" click required.
+  useEffect(() => {
+    if (currentCode) return;
+    let cancelled = false;
+    setAutoGenerating(true);
+    (async () => {
+      try {
+        const { regenerateLinkCode } = await import('../lib/firebase-api');
+        const newCode = await regenerateLinkCode(resident.id, resident.roomNumber);
+        if (cancelled) return;
+        setCurrentCode(newCode);
+        onCodeRegenerated();
+      } catch (err) {
+        console.error('Failed to auto-generate link code:', err);
+      } finally {
+        if (!cancelled) setAutoGenerating(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Generate QR code whenever the autoPairUrl changes
   useEffect(() => {
@@ -51,6 +75,7 @@ export const DeviceLinkQRModal: React.FC<DeviceLinkQRModalProps> = ({
   }, [autoPairUrl]);
 
   const handleCopyAutoPairUrl = () => {
+    if (!autoPairUrl) return;
     navigator.clipboard.writeText(autoPairUrl);
     setCopiedAuto(true);
     setTimeout(() => setCopiedAuto(false), 2500);
@@ -62,7 +87,8 @@ export const DeviceLinkQRModal: React.FC<DeviceLinkQRModalProps> = ({
     setTimeout(() => setCopiedPermanent(false), 2500);
   };
 
-  const handleRegenerateCode = async () => {
+  // Manual rotation of the URL — old QR codes immediately stop working.
+  const handleRotateCode = async () => {
     setRegenerating(true);
     try {
       const { regenerateLinkCode } = await import('../lib/firebase-api');
@@ -70,7 +96,7 @@ export const DeviceLinkQRModal: React.FC<DeviceLinkQRModalProps> = ({
       setCurrentCode(newCode);
       onCodeRegenerated();
     } catch (err) {
-      console.error('Failed to regenerate code:', err);
+      console.error('Failed to rotate code:', err);
     } finally {
       setRegenerating(false);
     }
@@ -101,9 +127,7 @@ export const DeviceLinkQRModal: React.FC<DeviceLinkQRModalProps> = ({
             img { width: 320px; height: 320px; }
             .url { font-family: monospace; font-size: 12px; word-break: break-all; background: #f1f5f9; padding: 8px; border-radius: 8px; margin-top: 12px; }
             .footer { color: #64748b; font-size: 12px; margin-top: 16px; }
-            @media print {
-              .no-print { display: none; }
-            }
+            @media print { .no-print { display: none; } }
           </style>
         </head>
         <body>
@@ -133,7 +157,9 @@ export const DeviceLinkQRModal: React.FC<DeviceLinkQRModalProps> = ({
             <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
               ROOM {resident.roomNumber}{resident.unitNumber ? ` / ${resident.unitNumber}` : ''}
             </span>
-            <h3 className="font-bold text-lg mt-1">Pair Device for {resident.name}</h3>
+            <h3 className="font-bold text-lg mt-1">
+              {resident.isDeviceLinked ? 'Re-Pair Device for' : 'Pair Device for'} {resident.name}
+            </h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
             <X className="w-5 h-5" />
@@ -159,21 +185,26 @@ export const DeviceLinkQRModal: React.FC<DeviceLinkQRModalProps> = ({
                   className="w-56 h-56 rounded-xl border-4 border-white shadow-md bg-white"
                 />
               ) : (
-                <div className="w-56 h-56 rounded-xl border-2 border-dashed border-emerald-300 flex items-center justify-center text-emerald-500 text-xs">
-                  Generating QR...
+                <div className="w-56 h-56 rounded-xl border-2 border-dashed border-emerald-300 flex flex-col items-center justify-center text-emerald-600 text-xs gap-2">
+                  <RefreshCw className="w-6 h-6 animate-spin" />
+                  <span className="font-semibold">
+                    {autoGenerating ? 'Generating pairing URL...' : 'Preparing QR...'}
+                  </span>
                 </div>
               )}
               <div className="flex gap-2 w-full">
                 <button
                   onClick={handleDownloadQr}
-                  className="flex-1 py-2 px-3 rounded-xl bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-100 font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  disabled={!qrDataUrl}
+                  className="flex-1 py-2 px-3 rounded-xl bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-100 font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50"
                 >
                   <Download className="w-3.5 h-3.5" />
                   Download
                 </button>
                 <button
                   onClick={handlePrint}
-                  className="flex-1 py-2 px-3 rounded-xl bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-100 font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  disabled={!qrDataUrl}
+                  className="flex-1 py-2 px-3 rounded-xl bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-100 font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   Print Card
@@ -195,12 +226,13 @@ export const DeviceLinkQRModal: React.FC<DeviceLinkQRModalProps> = ({
               <input
                 type="text"
                 readOnly
-                value={autoPairUrl}
+                value={autoPairUrl || (autoGenerating ? 'Generating...' : '')}
                 className="flex-1 text-[10px] px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 select-all font-mono truncate"
               />
               <button
                 onClick={handleCopyAutoPairUrl}
-                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs flex items-center gap-1.5 transition shrink-0 cursor-pointer"
+                disabled={!autoPairUrl}
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs flex items-center gap-1.5 transition shrink-0 cursor-pointer disabled:opacity-50"
               >
                 {copiedAuto ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
@@ -233,19 +265,24 @@ export const DeviceLinkQRModal: React.FC<DeviceLinkQRModalProps> = ({
           <div className="pt-2 border-t border-slate-100 space-y-2">
             <button
               onClick={() => onSimulateDeviceBind(currentCode)}
-              className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer"
+              disabled={!currentCode}
+              className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50"
             >
               <Smartphone className="w-4 h-4" />
               <span>Test: Open Resident View in This Browser</span>
             </button>
 
             <button
-              onClick={handleRegenerateCode}
-              disabled={regenerating}
-              className="text-xs text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1 mx-auto pt-1 cursor-pointer"
+              onClick={handleRotateCode}
+              disabled={regenerating || autoGenerating}
+              className="text-xs text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1 mx-auto pt-1 cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3 h-3 ${regenerating ? 'animate-spin' : ''}`} />
-              <span>Regenerate New Code (invalidates old QR)</span>
+              <span>
+                {regenerating
+                  ? 'Rotating...'
+                  : 'Rotate Pairing URL (invalidates old QR)'}
+              </span>
             </button>
           </div>
         </div>
