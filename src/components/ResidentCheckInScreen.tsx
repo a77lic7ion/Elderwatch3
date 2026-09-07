@@ -30,7 +30,7 @@ const DEFAULT_RESIDENT: ResidentProfile = {
   phone: '',
 };
 
-const CUTOFF_TIME = '9:15';
+const CUTOFF_TIME = '9:00';
 
 const T = {
   en: {
@@ -267,11 +267,14 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
     }
   }, [permanentResidentId]);
 
-  // Cutoff check
+  // Cutoff check - 9:00 AM SAST
   useEffect(() => {
     const check = () => {
       const now = new Date();
-      setIsLate(now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() >= 15));
+      // Convert to SAST (UTC+2)
+      const sastHour = (now.getUTCHours() + 2) % 24;
+      const sastMin = now.getUTCMinutes();
+      setIsLate(sastHour > 9 || (sastHour === 9 && sastMin >= 0));
     };
     check();
     const i = setInterval(check, 30000);
@@ -377,14 +380,45 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
     } finally { setSubmitting(false); }
   };
 
-  const handleUndo = async () => {
-    setView('morning');
-    setCheckInTime(null);
-    setHelpTime(null);
+  const handleImFine = async () => {
+    if (submitting) return;
+    const now = new Date();
+    setCheckInTime(now);
+    playTone(true);
+    buzz(60);
+    triggerFlash('ok');
+    setView('ok');
+
     const resId = deviceBinding?.residentId || 'demo';
     const hId = deviceBinding?.homeId || 'demo';
-    localStorage.removeItem(`elderwatch_checkin_${resId}_${new Date().toISOString().split('T')[0]}`);
-    try { await saveCheckinToFirestore(hId, resId, 'awaiting'); } catch (err) { console.error('[ElderWatch] Failed to undo:', err); }
+
+    try {
+      setSubmitting(true);
+      localStorage.setItem(`elderwatch_checkin_${resId}_${now.toISOString().split('T')[0]}`, JSON.stringify({ status: 'ok', timestamp: now.toISOString() }));
+
+      // Direct Firestore write - update to OK status
+      const { db } = await import('../lib/firebase');
+      const { doc, setDoc } = await import('firebase/firestore');
+
+      // SAST date
+      const sastNow = new Date(now.getTime() + (2 * 60 * 60 * 1000));
+      const today = sastNow.toISOString().split('T')[0];
+      const docId = `${hId}_${resId}_${today}`;
+
+      await setDoc(doc(db, 'checkins', docId), {
+        id: docId,
+        homeId: hId,
+        residentId: resId,
+        date: today,
+        status: 'ok',
+        timestamp: now.toISOString(),
+        updatedBy: 'resident',
+      }, { merge: true });
+
+      console.log('[ElderWatch] "I\'m Fine" - updated to OK:', docId);
+    } catch (err) {
+      console.error('[ElderWatch] FAILED:', err);
+    } finally { setSubmitting(false); }
   };
 
   const t = T[lang];
@@ -570,12 +604,6 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
                   <h2 style={{ margin: 0, fontSize: '28px', lineHeight: 1.1, fontWeight: 700, color: '#157A4C' }}>{t.okTitle(residentProfile.name)}</h2>
                   <p style={{ margin: 0, fontSize: '18px', opacity: 0.9 }}>{t.okBody}</p>
                   <p style={{ margin: 0, fontSize: '16px', opacity: 0.7 }}>{t.okTime(formatHHMM(checkInTime || now))}</p>
-                  <button onClick={handleUndo} style={{ 
-                    marginTop: 'auto', alignSelf: 'flex-start',
-                    background: 'transparent', border: '2px solid rgba(255,255,255,0.3)',
-                    borderRadius: '999px', padding: '10px 20px',
-                    fontSize: '16px', fontWeight: 700, cursor: 'pointer', color: 'white'
-                  }}>{t.undo}</button>
                 </div>
               )}
 
@@ -600,12 +628,14 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
                   <h2 style={{ margin: 0, fontSize: '28px', lineHeight: 1.1, fontWeight: 700, color: '#C53030' }}>{t.helpTitle}</h2>
                   <p style={{ margin: 0, fontSize: '18px', opacity: 0.9 }}>{t.helpBody(residentProfile.sister)}</p>
                   <p style={{ margin: 0, fontSize: '16px', opacity: 0.7 }}>{t.helpTime(formatHHMM(helpTime || now))}</p>
-                  <button onClick={handleUndo} style={{ 
+                  <button onClick={handleImFine} disabled={submitting} style={{ 
                     marginTop: 'auto', alignSelf: 'flex-start',
-                    background: 'transparent', border: '2px solid rgba(255,255,255,0.3)',
-                    borderRadius: '999px', padding: '10px 20px',
-                    fontSize: '16px', fontWeight: 700, cursor: 'pointer', color: 'white'
-                  }}>{t.cancel}</button>
+                    background: '#157A4C', border: 'none',
+                    borderRadius: '999px', padding: '12px 24px',
+                    fontSize: '18px', fontWeight: 700, cursor: 'pointer', color: 'white',
+                    boxShadow: '0 4px 20px rgba(21,122,76,0.4)',
+                    opacity: submitting ? 0.6 : 1
+                  }}>{submitting ? 'Updating...' : t.cancel}</button>
                 </div>
               )}
             </div>
