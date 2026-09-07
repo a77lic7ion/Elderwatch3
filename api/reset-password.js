@@ -1,19 +1,20 @@
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { GoogleAuth } from 'google-auth-library';
 
 const SERVICE_ACCOUNT = {
   type: 'service_account',
   project_id: process.env.FIREBASE_PROJECT_ID,
   client_email: process.env.FIREBASE_CLIENT_EMAIL,
-  private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  private_key: process.env.FIREBASE_PRIVATE_KEY,
 };
 
-let app;
-if (getApps().length === 0) {
-  app = initializeApp({ credential: cert(SERVICE_ACCOUNT) });
-} else {
-  app = getApps()[0];
+async function getAccessToken() {
+  const auth = new GoogleAuth({
+    credentials: SERVICE_ACCOUNT,
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+  });
+  const client = await auth.getClient();
+  const tokenResponse = await client.getAccessToken();
+  return tokenResponse.token;
 }
 
 export default async function handler(req, res) {
@@ -35,11 +36,66 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    // Update password in Firebase Auth
-    await getAuth().updateUser(staffId, { password: newPassword });
+    const accessToken = await getAccessToken();
+    const projectId = SERVICE_ACCOUNT.project_id;
 
-    // Update passwordHash in Firestore staff document
-    await getFirestore().collection('staff').doc(staffId).update({ passwordHash: newPassword });
+    // Update password in Firebase Auth
+    const authResponse = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:update`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          localId: staffId,
+          password: newPassword,
+          returnSecureToken: true,
+        }),
+      }
+    );
+
+    if (!authResponse.ok) {
+      const authError = await authResponse.json();
+      console.error('Auth update error:', authError);
+      return res.status(500).json({ error: 'Failed to update password in authentication' });
+    }
+
+    // Read current Firestore document to preserve all fields
+    const getUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/staff/${staffId}`;
+    const getResponse = await fetch(getUrl, {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+
+    if (!getResponse.ok) {
+      const getError = await getResponse.json();
+      console.error('Firestore read error:', getError);
+      return res.status(500).json({ error: 'Failed to read staff document' });
+    }
+
+    const docData = await getResponse.json();
+
+    // Update only the passwordHash field
+    const updatedFields = docData.fields || {};
+    updatedFields.passwordHash = { stringValue: newPassword };
+
+    // Write back the complete document
+    const patchUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/staff/${staffId}`;
+    const patchResponse = await fetch(patchUrl, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fields: updatedFields }),
+    });
+
+    if (!patchResponse.ok) {
+      const patchError = await patchResponse.json();
+      console.error('Firestore update error:', patchError);
+      return res.status(500).json({ error: 'Failed to update password in database' });
+    }
 
     return res.status(200).json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
