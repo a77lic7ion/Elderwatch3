@@ -296,6 +296,20 @@ export async function fetchResidentHistory(residentId: string, homeId: string) {
   return { resident, history };
 }
 
+// Fetch check-ins for a home within a date range (inclusive).
+export async function fetchCheckinsForHomeInRange(homeId: string, startDate: string, endDate: string) {
+  const snap = await getDocs(
+    query(
+      collection(db, 'checkins'),
+      where('homeId', '==', homeId),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate)
+    )
+  );
+
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
 // Fetch all homes (for admin home selector)
 export async function fetchAllHomes() {
   const snap = await getDocs(collection(db, 'homes'));

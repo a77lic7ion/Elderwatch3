@@ -29,6 +29,7 @@ import {
   Link2,
   Menu,
   X,
+  Download,
 } from 'lucide-react';
 import { ResidentTodayView, Home, StaffUser, JobExecutionLog, PushNotificationRecord } from '../types';
 import { playEmergencyAlertSound } from '../utils/audioAlert';
@@ -44,7 +45,7 @@ import {
   validateFirestoreConnection,
   firebaseConfig,
 } from '../lib/firebase';
-import { fetchResidents as fetchFirebaseResidents, fetchAllHomes as fetchFirebaseAllHomes, updateHomeSettings } from '../lib/firebase-api';
+import { fetchResidents as fetchFirebaseResidents, fetchAllHomes as fetchFirebaseAllHomes, updateHomeSettings, fetchCheckinsForHomeInRange } from '../lib/firebase-api';
 
 interface AdminPanelProps {
   token: string;
@@ -64,7 +65,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onSimulateDeviceBind,
 }) => {
   const [isNight] = useAppTheme();
-  const [activeTab, setActiveTab] = useState<'overview' | 'dashboard' | 'residents' | 'linking' | 'settings'>(
+  const [activeTab, setActiveTab] = useState<'overview' | 'dashboard' | 'residents' | 'linking' | 'settings' | 'reports'>(
     user.role === 'admin' ? 'overview' : 'dashboard'
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -86,6 +87,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [cutoffTimeInput, setCutoffTimeInput] = useState(initialHome.cutoffTime);
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSuccessMsg, setSettingsSuccessMsg] = useState('');
+
+  // Reports state
+  const [reportPeriod, setReportPeriod] = useState<'weekly' | 'monthly'>('monthly');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportCsv, setReportCsv] = useState<string | null>(null);
+  const [reportFileName, setReportFileName] = useState<string | null>(null);
 
   // Audio and Realtime State
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -272,6 +280,82 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     } finally {
       setSavingSettings(false);
     }
+  };
+
+  const getDateRangeForPeriod = (period: 'weekly' | 'monthly') => {
+    const now = new Date();
+    const sastNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    const end = sastNow.toISOString().split('T')[0];
+
+    const startDate = new Date(sastNow);
+    if (period === 'weekly') {
+      startDate.setDate(sastNow.getDate() - 7);
+    } else {
+      startDate.setDate(sastNow.getDate() - 30);
+    }
+    const start = startDate.toISOString().split('T')[0];
+    return { start, end };
+  };
+
+  const handleGenerateReport = async () => {
+    setReportLoading(true);
+    setReportError(null);
+    setReportCsv(null);
+    setReportFileName(null);
+
+    try {
+      const { start, end } = getDateRangeForPeriod(reportPeriod);
+      const rows = await fetchCheckinsForHomeInRange(home.id, start, end);
+
+      if (!rows.length) {
+        setReportError('No check-ins found for this period.');
+        setReportLoading(false);
+        return;
+      }
+
+      const header = 'Resident,Room,Date,Status,Time,Updated By\n';
+      const body = rows
+        .sort((a: any, b: any) => {
+          if (a.residentId < b.residentId) return -1;
+          if (a.residentId > b.residentId) return 1;
+          if (a.date < b.date) return -1;
+          if (a.date > b.date) return 1;
+          return 0;
+        })
+        .map((r: any) => {
+          const time = r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+          const status = r.status || '';
+          const updatedBy = r.updatedBy || '';
+          const name = (r.residentId || '').replace(/"/g, '""');
+          const room = (r.roomNumber || '').replace(/"/g, '""');
+          const date = (r.date || '').replace(/"/g, '""');
+          const safeTime = time.replace(/"/g, '""');
+          const safeStatus = status.replace(/"/g, '""');
+          const safeUpdated = updatedBy.replace(/"/g, '""');
+          return `"${name}","${room}","${date}","${safeStatus}","${safeTime}","${safeUpdated}"`;
+        })
+        .join('\n');
+
+      const csv = header + body;
+      setReportCsv(csv);
+      setReportFileName(`ElderWatch_${home.name.replace(/[^a-zA-Z0-9]+/g, '_')}_${reportPeriod}_${start}_to_${end}.csv`);
+    } catch (err) {
+      console.error('Report generation failed:', err);
+      setReportError('Failed to generate report. Please try again.');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const handleDownloadReport = () => {
+    if (!reportCsv || !reportFileName) return;
+    const blob = new Blob([reportCsv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = reportFileName;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Trigger morning reset - resets all residents to 'awaiting'
@@ -727,6 +811,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <Settings className="w-4 h-4" />
             <span>Home Settings & Daily Cycle</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`px-4 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+              activeTab === 'reports'
+                ? isNight
+                  ? 'border-emerald-500 text-emerald-400'
+                  : 'border-emerald-600 text-emerald-700'
+                : isNight
+                ? 'border-transparent text-slate-400 hover:text-slate-200'
+                : 'border-transparent text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Reports & Exports</span>
+          </button>
         </div>
 
         {/* PRIMARY TAB NAVIGATION - Mobile current tab indicator + dropdown */}
@@ -746,12 +846,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               {activeTab === 'residents' && <Users className="w-4 h-4 text-emerald-500" />}
               {activeTab === 'linking' && <Link2 className="w-4 h-4 text-emerald-500" />}
               {activeTab === 'settings' && <Settings className="w-4 h-4 text-emerald-500" />}
+              {activeTab === 'reports' && <FileText className="w-4 h-4 text-emerald-500" />}
               <span className="text-sm font-bold">
                 {activeTab === 'overview' && 'All Homes & Staff Overview'}
                 {activeTab === 'dashboard' && 'Live Status Dashboard'}
                 {activeTab === 'residents' && 'Resident Management'}
                 {activeTab === 'linking' && 'Device Pairing'}
                 {activeTab === 'settings' && 'Home Settings & Daily Cycle'}
+                {activeTab === 'reports' && 'Reports & Exports'}
               </span>
               {activeTab === 'dashboard' && stats.notOk > 0 && (
                 <span className="bg-rose-600 text-white font-bold text-[10px] px-1.5 py-0.2 rounded-full animate-pulse">
@@ -886,6 +988,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             >
               <Settings className="w-4 h-4 text-emerald-500" />
               <span>Home Settings & Daily Cycle</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('reports'); setMobileMenuOpen(false); }}
+              className={`w-full px-4 py-3 text-sm font-bold rounded-xl flex items-center gap-3 transition cursor-pointer ${
+                activeTab === 'reports'
+                  ? isNight
+                    ? 'bg-emerald-950/60 text-emerald-300'
+                    : 'bg-emerald-50 text-emerald-700'
+                  : isNight
+                  ? 'text-slate-300 hover:bg-slate-800'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <FileText className="w-4 h-4 text-emerald-500" />
+              <span>Reports & Exports</span>
             </button>
 
             {/* Resident View button in mobile menu */}
@@ -1620,6 +1738,68 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   ))
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* =================================================================== */}
+        {/* 5. REPORTS & EXPORTS TAB */}
+        {/* =================================================================== */}
+        {activeTab === 'reports' && (
+          <div className="space-y-6">
+            <div className={`p-6 rounded-3xl border shadow-xs ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+              <div className="flex items-center gap-2 mb-4">
+                <FileText className="w-5 h-5 text-emerald-600" />
+                <h3 className={`text-lg font-bold ${isNight ? 'text-white' : 'text-slate-900'}`}>Check-In Report Export</h3>
+              </div>
+
+              <p className={`text-xs leading-relaxed mb-4 ${isNight ? 'text-slate-400' : 'text-slate-600'}`}>
+                Generate a CSV report of check-ins for this home. You can email this file directly to staff or keep it for records.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <label className={`text-xs font-bold uppercase tracking-wider ${isNight ? 'text-slate-300' : 'text-slate-700'}`}>Period</label>
+                <select
+                  value={reportPeriod}
+                  onChange={(e) => setReportPeriod(e.target.value as 'weekly' | 'monthly')}
+                  className={`p-2.5 rounded-xl border text-sm font-semibold ${isNight ? 'bg-slate-800 border-slate-700 text-white' : 'border-slate-300 text-slate-900'}`}
+                >
+                  <option value="weekly">Last 7 days</option>
+                  <option value="monthly">Last 30 days</option>
+                </select>
+
+                <button
+                  onClick={handleGenerateReport}
+                  disabled={reportLoading}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition cursor-pointer disabled:opacity-50"
+                >
+                  {reportLoading ? 'Generating...' : 'Generate CSV Report'}
+                </button>
+              </div>
+
+              {reportError && (
+                <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-semibold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600" />
+                  <span>{reportError}</span>
+                </div>
+              )}
+
+              {reportCsv && !reportError && (
+                <div className="mt-5 space-y-3">
+                  <div className={`p-4 rounded-2xl border text-xs ${isNight ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                    <p className="font-bold mb-1">Report ready</p>
+                    <p>File: <span className="font-mono">{reportFileName}</span></p>
+                    <p className="mt-1 opacity-75">Contains resident check-ins from the selected period.</p>
+                  </div>
+                  <button
+                    onClick={handleDownloadReport}
+                    className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm transition cursor-pointer flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download CSV
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
