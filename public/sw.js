@@ -1,4 +1,4 @@
-const CACHE_NAME = 'elderwatch-v1';
+const CACHE_NAME = 'elderwatch-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -30,8 +30,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // For API calls or Server-Sent Events, don't cache with service worker
-  if (url.pathname.startsWith('/api/')) {
+  // For API calls, Firebase, or Server-Sent Events, don't cache with service worker
+  if (url.pathname.startsWith('/api/') || url.hostname.includes('googleapis.com') || url.hostname.includes('firebaseio.com') || url.hostname.includes('firestore.googleapis.com')) {
     return;
   }
 
