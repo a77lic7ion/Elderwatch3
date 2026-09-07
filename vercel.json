@@ -1,5 +1,12 @@
 {
   "buildCommand": "npm run build",
   "framework": "vite",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "rewrites": [
+    { "source": "/link", "destination": "/index.html" },
+    { "source": "/link/:code", "destination": "/index.html" },
+    { "source": "/checkin", "destination": "/index.html" },
+    { "source": "/checkin/:residentId", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/index.html" }
+  ]
 }
