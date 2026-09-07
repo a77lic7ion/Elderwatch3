@@ -7,6 +7,7 @@ import { useAppTheme } from './ThemeToggle';
 interface ResidentCheckInScreenProps {
   onNavigateToAdmin?: () => void;
   onNavigateToLink?: (code?: string) => void;
+  permanentResidentId?: string | null;
 }
 
 type ViewState = 'morning' | 'ok' | 'help' | 'linked';
@@ -97,6 +98,7 @@ function formatHHMM(d: Date) {
 export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
   onNavigateToAdmin,
   onNavigateToLink,
+  permanentResidentId,
 }) => {
   // Device binding from storage
   const [deviceBinding, setDeviceBinding] = useState<DeviceBinding | null>(null);
@@ -234,6 +236,71 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
       console.error('Error loading device state:', e);
     }
   }, []);
+
+  // Auto-bind device when opened via permanent URL /checkin/:residentId
+  useEffect(() => {
+    if (!permanentResidentId) return;
+
+    const autoBind = async () => {
+      try {
+        const { db } = await import('../lib/firebase');
+        const { doc, getDoc } = await import('firebase/firestore');
+        const { getDocs, query, collection, where } = await import('firebase/firestore');
+
+        const residentDoc = await getDoc(doc(db, 'residents', permanentResidentId));
+        if (!residentDoc.exists()) return;
+
+        const rData = residentDoc.data();
+        const homeDoc = await getDoc(doc(db, 'homes', rData.homeId));
+        const homeName = homeDoc.exists() ? (homeDoc.data() as any).name : 'Care Home';
+
+        const binding: DeviceBinding = {
+          residentId: permanentResidentId,
+          homeId: rData.homeId,
+          residentName: rData.name,
+          roomNumber: rData.roomNumber,
+          homeName,
+          linkedAt: new Date().toISOString(),
+        };
+
+        // Mark as linked if not already
+        if (!rData.isDeviceLinked) {
+          await import('firebase/firestore').then(fb =>
+            fb.setDoc(doc(db, 'residents', permanentResidentId), {
+              isDeviceLinked: true,
+              linkedAt: new Date().toISOString(),
+              oneTimeLinkCode: null,
+            }, { merge: true })
+          );
+        }
+
+        localStorage.setItem('elderwatch_device_binding', JSON.stringify(binding));
+        setDeviceBinding(binding);
+
+        const nameParts = binding.residentName.split(' ');
+        const initials = nameParts.length > 1 ? `${nameParts[0][0]}${nameParts[1][0]}` : nameParts[0].substring(0, 2);
+        setResidentProfile({
+          name: binding.residentName.split(' ')[0] || binding.residentName,
+          room: `Room ${binding.roomNumber}`,
+          wing: homeName,
+          sister: 'Sarah',
+          sisterInitials: initials.toUpperCase(),
+          phone: '+27118944000',
+        });
+
+        setView('linked');
+        setTimeout(() => setView('morning'), 2000);
+      } catch (e) {
+        console.error('Error auto-binding from permanent URL:', e);
+      }
+    };
+
+    // Only auto-bind if no existing binding or binding is for a different resident
+    const existing = localStorage.getItem('elderwatch_device_binding');
+    if (!existing || JSON.parse(existing).residentId !== permanentResidentId) {
+      autoBind();
+    }
+  }, [permanentResidentId]);
 
   // Check if after 9:15 cutoff automatically
   useEffect(() => {

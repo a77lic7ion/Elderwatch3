@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Smartphone, CheckCircle, Shield, AlertCircle, ArrowRight, Home } from 'lucide-react';
 import { DeviceBinding } from '../types';
+import { db } from '../lib/firebase';
+import { collection, query, where, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
 
 interface DeviceLinkScreenProps {
   initialCode?: string;
@@ -33,7 +35,6 @@ export const DeviceLinkScreen: React.FC<DeviceLinkScreenProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [bindingInProgress, setBindingInProgress] = useState(false);
 
-  // Auto-verify if code passed in URL
   useEffect(() => {
     if (initialCode) {
       handleVerify(initialCode);
@@ -47,16 +48,42 @@ export const DeviceLinkScreen: React.FC<DeviceLinkScreenProps> = ({
     setVerifyResult(null);
 
     try {
-      const res = await fetch(`/api/link/verify?code=${encodeURIComponent(targetCode.trim())}`);
-      const data = await res.json();
+      // Search Firestore for resident with matching link code
+      const residentsRef = collection(db, 'residents');
+      const q = query(residentsRef, where('oneTimeLinkCode', '==', targetCode.trim().toUpperCase()));
+      const snap = await getDocs(q);
 
-      if (!res.ok || !data.valid) {
-        setError(data.error || 'Invalid or expired setup code.');
+      if (snap.empty) {
+        // Try case-insensitive by fetching all and filtering
+        const allSnap = await getDocs(residentsRef);
+        const match = allSnap.docs.find(d => {
+          const data = d.data();
+          return data.oneTimeLinkCode && data.oneTimeLinkCode.toUpperCase() === targetCode.trim().toUpperCase();
+        });
+
+        if (!match) {
+          setError('Invalid or expired pairing code.');
+          return;
+        }
+
+        const residentData = match.data();
+        const homeDoc = await getDoc(doc(db, 'homes', residentData.homeId));
+        setVerifyResult({
+          valid: true,
+          resident: { id: match.id, name: residentData.name, roomNumber: residentData.roomNumber, homeId: residentData.homeId },
+          home: homeDoc.exists() ? { id: homeDoc.id, ...homeDoc.data() } as any : null,
+        });
       } else {
-        setVerifyResult(data);
+        const residentData = snap.docs[0].data();
+        const homeDoc = await getDoc(doc(db, 'homes', residentData.homeId));
+        setVerifyResult({
+          valid: true,
+          resident: { id: snap.docs[0].id, name: residentData.name, roomNumber: residentData.roomNumber, homeId: residentData.homeId },
+          home: homeDoc.exists() ? { id: homeDoc.id, ...homeDoc.data() } as any : null,
+        });
       }
     } catch {
-      setError('Network error verifying device setup code.');
+      setError('Network error verifying pairing code.');
     } finally {
       setVerifying(false);
     }
@@ -68,24 +95,26 @@ export const DeviceLinkScreen: React.FC<DeviceLinkScreenProps> = ({
     setError(null);
 
     try {
-      const res = await fetch('/api/link/bind', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: code.trim() }),
-      });
+      const { resident } = verifyResult;
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setError(data.error || 'Failed to bind device.');
-        setBindingInProgress(false);
-        return;
-      }
+      // Update resident document: mark as linked, clear the one-time code
+      await setDoc(doc(db, 'residents', resident.id), {
+        isDeviceLinked: true,
+        linkedAt: new Date().toISOString(),
+        oneTimeLinkCode: null,
+      }, { merge: true });
 
-      // Store permanently in device's localStorage
-      localStorage.setItem('elderwatch_device_binding', JSON.stringify(data.binding));
+      const binding: DeviceBinding = {
+        residentId: resident.id,
+        homeId: resident.homeId,
+        residentName: resident.name,
+        roomNumber: resident.roomNumber,
+        homeName: verifyResult.home?.name || 'Care Home',
+        linkedAt: new Date().toISOString(),
+      };
 
-      // Invoke success handler to redirect to /checkin
-      onLinkedSuccess(data.binding);
+      localStorage.setItem('elderwatch_device_binding', JSON.stringify(binding));
+      onLinkedSuccess(binding);
     } catch {
       setError('Failed to bind device due to a connection issue.');
       setBindingInProgress(false);
@@ -106,10 +135,7 @@ export const DeviceLinkScreen: React.FC<DeviceLinkScreenProps> = ({
           </div>
         </div>
         {onCancel && (
-          <button
-            onClick={onCancel}
-            className="text-xs text-slate-400 hover:text-white transition px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800"
-          >
+          <button onClick={onCancel} className="text-xs text-slate-400 hover:text-white transition px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800">
             Cancel
           </button>
         )}
@@ -126,13 +152,13 @@ export const DeviceLinkScreen: React.FC<DeviceLinkScreenProps> = ({
             <div className="text-center space-y-1">
               <h2 className="text-2xl font-bold text-white">Setup Resident Phone</h2>
               <p className="text-sm text-slate-300">
-                Enter the one-time code or scan the QR code displayed in the Staff Admin Panel.
+                Enter the pairing code displayed in the Staff Admin Panel.
               </p>
             </div>
 
             <div className="space-y-3">
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                Setup Code
+                Pairing Code
               </label>
               <input
                 type="text"
@@ -160,7 +186,6 @@ export const DeviceLinkScreen: React.FC<DeviceLinkScreenProps> = ({
             </div>
           </div>
         ) : (
-          /* Confirmation Screen */
           <div className="bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-700 shadow-2xl space-y-6">
             <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto">
               <CheckCircle className="w-8 h-8" />
@@ -199,7 +224,6 @@ export const DeviceLinkScreen: React.FC<DeviceLinkScreenProps> = ({
 
             <button
               type="button"
-              id="btn-confirm-device-bind"
               onClick={handleConfirmBind}
               disabled={bindingInProgress}
               className="w-full py-4 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 font-bold text-white text-base shadow-xl shadow-emerald-950/40 transition flex items-center justify-center gap-2 cursor-pointer"

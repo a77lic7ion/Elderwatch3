@@ -28,6 +28,16 @@ export default function App() {
     return '';
   });
 
+  // Permanent resident ID from /checkin/:residentId
+  const [permanentResidentId, setPermanentResidentId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      const match = path.match(/^\/checkin\/(.+)$/);
+      if (match) return match[1];
+    }
+    return null;
+  });
+
   // Staff Authentication State
   const [staffToken, setStaffToken] = useState<string | null>(null);
   const [staffUser, setStaffUser] = useState<StaffUser | null>(null);
@@ -74,11 +84,13 @@ export default function App() {
     const handlePopState = () => {
       const path = window.location.pathname;
       const params = new URLSearchParams(window.location.search);
-      if (path.startsWith('/checkin')) {
-        setCurrentRoute('checkin');
-      } else if (path.startsWith('/link')) {
+      if (path.startsWith('/link')) {
         setCurrentRoute('link');
         setLinkCodeParam(params.get('code') || '');
+      } else if (path.startsWith('/checkin')) {
+        setCurrentRoute('checkin');
+        const match = path.match(/^\/checkin\/(.+)$/);
+        setPermanentResidentId(match ? match[1] : null);
       } else {
         setCurrentRoute('admin');
       }
@@ -193,6 +205,7 @@ export default function App() {
         <ResidentCheckInScreen
           onNavigateToAdmin={() => navigate('admin')}
           onNavigateToLink={(code) => navigate('link', code)}
+          permanentResidentId={permanentResidentId}
         />
       )}
 

@@ -278,3 +278,65 @@ export async function fetchResidentHistory(residentId: string, homeId: string) {
   
   return { resident, history };
 }
+
+// Fetch all homes (for admin home selector)
+export async function fetchAllHomes() {
+  const snap = await getDocs(collection(db, 'homes'));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+}
+
+// Regenerate Link Code for a resident
+export async function regenerateLinkCode(residentId: string, roomNumber: string) {
+  const newCode = `LINK-${roomNumber.replace(/[^a-zA-Z0-9]/g, '')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+  await setDoc(doc(db, 'residents', residentId), {
+    oneTimeLinkCode: newCode,
+    isDeviceLinked: false,
+    linkedAt: null,
+  }, { merge: true });
+  return newCode;
+}
+
+// Update Resident details
+export async function updateResident(residentId: string, updates: Partial<{ name: string; roomNumber: string; phone: string; emergencyContact: string; notes: string }>) {
+  await setDoc(doc(db, 'residents', residentId), updates, { merge: true });
+  const snap = await getDoc(doc(db, 'residents', residentId));
+  return { id: snap.id, ...snap.data() };
+}
+
+// Batch import residents from CSV data
+export async function batchImportResidents(homeId: string, residents: Array<{ name: string; roomNumber: string; phone?: string; emergencyContact?: string; notes?: string }>) {
+  const today = getTodaySAST();
+  const results = [];
+
+  for (const r of residents) {
+    const id = `res-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const linkCode = `LINK-${r.roomNumber.replace(/[^a-zA-Z0-9]/g, '')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    const newResident = {
+      id,
+      homeId,
+      name: r.name.trim(),
+      roomNumber: r.roomNumber.trim(),
+      phone: (r.phone || '').trim(),
+      emergencyContact: (r.emergencyContact || '').trim(),
+      notes: (r.notes || '').trim(),
+      isDeviceLinked: false,
+      linkedAt: null,
+      oneTimeLinkCode: linkCode,
+      pushToken: null,
+      createdAt: new Date().toISOString(),
+    };
+
+    await setDoc(doc(db, 'residents', id), newResident);
+
+    const checkinId = `${homeId}_${id}_${today}`;
+    await setDoc(doc(db, 'checkins', checkinId), {
+      id: checkinId, homeId, residentId: id, date: today,
+      status: 'awaiting', timestamp: new Date().toISOString(), updatedBy: 'morning_job',
+    });
+
+    results.push({ ...newResident, linkCode });
+  }
+
+  return results;
+}

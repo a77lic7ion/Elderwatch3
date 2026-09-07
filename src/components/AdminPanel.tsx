@@ -25,6 +25,8 @@ import {
   Info,
   Check,
   Building,
+  Upload,
+  Link2,
 } from 'lucide-react';
 import { ResidentTodayView, Home, StaffUser, JobExecutionLog, PushNotificationRecord } from '../types';
 import { playEmergencyAlertSound } from '../utils/audioAlert';
@@ -40,6 +42,7 @@ import {
   validateFirestoreConnection,
   firebaseConfig,
 } from '../lib/firebase';
+import { fetchResidents as fetchFirebaseResidents, fetchAllHomes as fetchFirebaseAllHomes, updateHomeSettings } from '../lib/firebase-api';
 
 interface AdminPanelProps {
   token: string;
@@ -101,48 +104,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [allHomes, setAllHomes] = useState<Home[]>([]);
   const [firestoreConnected, setFirestoreConnected] = useState<boolean | null>(null);
 
-  // Fetch all residents and data
+  // Fetch all residents and data (using Firebase direct)
   const fetchResidents = useCallback(async () => {
     try {
-      const res = await fetch(`/api/residents?homeId=${home.id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'x-home-id': home.id,
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setResidents(data.residents || []);
-      }
+      const data = await fetchFirebaseResidents(home.id);
+      setResidents(data || []);
     } catch (err) {
       console.error('Failed to fetch residents:', err);
     } finally {
       setLoading(false);
     }
-  }, [token, home.id]);
+  }, [home.id]);
 
   const fetchLogs = useCallback(async () => {
-    try {
-      const res = await fetch('/api/jobs/logs', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setJobLogs(data.jobLogs || []);
-        setPushLogs(data.pushLogs || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch job logs:', err);
-    }
-  }, [token]);
+    // Logs are read from Firestore directly via subscribeToTodayCheckins
+    // No REST API needed - the realtime listener handles updates
+  }, []);
 
   const fetchAllHomes = useCallback(async () => {
     try {
-      const res = await fetch('/api/system/homes');
-      if (res.ok) {
-        const data = await res.json();
-        setAllHomes(data.homes || []);
-      }
+      const homes = await fetchFirebaseAllHomes();
+      setAllHomes(homes || []);
     } catch (err) {
       console.error('Failed to fetch homes list:', err);
     }
@@ -261,21 +243,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setSettingsSuccessMsg('');
 
     try {
-      const res = await fetch('/api/home/settings', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: homeNameInput,
-          cutoffTime: cutoffTimeInput,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setHome(data.home);
+      const updated = await updateHomeSettings(home.id, homeNameInput, cutoffTimeInput);
+      if (updated) {
+        setHome(updated);
         setSettingsSuccessMsg('Facility settings updated successfully!');
         setTimeout(() => setSettingsSuccessMsg(''), 4000);
       }
@@ -308,6 +278,92 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     } finally {
       setRunningJob(null);
       setTimeout(() => setJobFeedbackMsg(''), 5000);
+    }
+  };
+
+  // CSV Import Handler
+  const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const lines = text.split('\n').filter(l => l.trim());
+    if (lines.length < 2) {
+      alert('CSV must have a header row and at least one data row.');
+      return;
+    }
+
+    const header = lines[0].toLowerCase().split(',').map(h => h.trim());
+    const nameIdx = header.findIndex(h => h.includes('name'));
+    const roomIdx = header.findIndex(h => h.includes('room'));
+    const phoneIdx = header.findIndex(h => h.includes('phone'));
+    const ecIdx = header.findIndex(h => h.includes('emergency') || h.includes('contact'));
+    const notesIdx = header.findIndex(h => h.includes('note'));
+
+    if (nameIdx === -1 || roomIdx === -1) {
+      alert('CSV must have "name" and "room" columns.');
+      return;
+    }
+
+    const residents = lines.slice(1).map(line => {
+      const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+      return {
+        name: cols[nameIdx] || '',
+        roomNumber: cols[roomIdx] || '',
+        phone: phoneIdx >= 0 ? cols[phoneIdx] || '' : '',
+        emergencyContact: ecIdx >= 0 ? cols[ecIdx] || '' : '',
+        notes: notesIdx >= 0 ? cols[notesIdx] || '' : '',
+      };
+    }).filter(r => r.name && r.roomNumber);
+
+    if (residents.length === 0) {
+      alert('No valid residents found in CSV.');
+      return;
+    }
+
+    if (!confirm(`Import ${residents.length} residents into ${home.name}?`)) return;
+
+    try {
+      const { batchImportResidents } = await import('../lib/firebase-api');
+      const results = await batchImportResidents(home.id, residents);
+      alert(`Successfully imported ${results.length} residents.`);
+      fetchResidents();
+    } catch (err) {
+      alert('Failed to import residents: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
+
+    e.target.value = '';
+  };
+
+  // Batch Link Code Export
+  const handleBatchLinkCodes = () => {
+    const origin = window.location.origin;
+    const lines = ['Room,Name,Link Code,Pairing URL,Check-in URL'];
+    residents.forEach(r => {
+      const pairingUrl = `${origin}/link?code=${encodeURIComponent(r.oneTimeLinkCode || '')}`;
+      const checkinUrl = `${origin}/checkin/${r.id}`;
+      lines.push(`"${r.roomNumber}","${r.name}","${r.oneTimeLinkCode || 'N/A'}","${pairingUrl}","${checkinUrl}"`);
+    });
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `elderwatch-link-codes-${home.name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Regenerate Link Code
+  const handleRegenerateLinkCode = async (residentId: string, roomNumber: string, residentName: string) => {
+    if (!confirm(`Regenerate link code for "${residentName}"? This will invalidate any existing pairing.`)) return;
+    try {
+      const { regenerateLinkCode } = await import('../lib/firebase-api');
+      const newCode = await regenerateLinkCode(residentId, roomNumber);
+      alert(`New link code for ${residentName}: ${newCode}`);
+      fetchResidents();
+    } catch (err) {
+      alert('Failed to regenerate code: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 
@@ -577,8 +633,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
-            <QrCode className="w-4 h-4" />
-            <span>Device Linking & QR Setup</span>
+            <Link2 className="w-4 h-4" />
+            <span>Device Pairing</span>
             <span
               className={`text-[10px] px-2 py-0.2 rounded-full font-mono ${
                 isNight ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
@@ -916,16 +972,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   Manage resident profiles, emergency contacts, and device-linking status for {home.name}.
                 </p>
               </div>
-              <button
-                onClick={() => {
-                  setEditingResident(null);
-                  setIsAddEditModalOpen(true);
-                }}
-                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition cursor-pointer shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add New Resident</span>
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <label className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer">
+                  <Upload className="w-4 h-4" />
+                  <span>CSV Import</span>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCsvImport}
+                    className="hidden"
+                  />
+                </label>
+                <button
+                  onClick={handleBatchLinkCodes}
+                  className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <Link2 className="w-4 h-4" />
+                  <span>Export Link Codes</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingResident(null);
+                    setIsAddEditModalOpen(true);
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Resident</span>
+                </button>
+              </div>
             </div>
 
             {/* Residents Table */}
@@ -937,8 +1012,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <th className="py-3 px-4">Room</th>
                       <th className="py-3 px-4">Resident Name</th>
                       <th className="py-3 px-4">Phone</th>
+                      <th className="py-3 px-4">Link Code</th>
                       <th className="py-3 px-4">Device Status</th>
-                      <th className="py-3 px-4">Emergency Contact</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -950,9 +1025,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </td>
                         <td className="py-3.5 px-4 font-bold text-slate-900">
                           {r.name}
+                          {r.emergencyContact && (
+                            <div className="text-[10px] text-slate-400 font-normal">EC: {r.emergencyContact}</div>
+                          )}
                         </td>
                         <td className="py-3.5 px-4 text-slate-600">
                           {r.phone || '—'}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            {r.oneTimeLinkCode || (r.isDeviceLinked ? 'Paired' : '—')}
+                          </span>
                         </td>
                         <td className="py-3.5 px-4">
                           {r.isDeviceLinked ? (
@@ -965,16 +1048,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             </span>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 text-slate-600">
-                          {r.emergencyContact || '—'}
-                        </td>
-                        <td className="py-3.5 px-4 text-right space-x-1.5">
+                        <td className="py-3.5 px-4 text-right space-x-1">
                           <button
                             onClick={() => setSelectedResidentForQR(r)}
                             className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-                            title="Generate Setup QR"
+                            title="Pair Device"
                           >
-                            <QrCode className="w-3.5 h-3.5" />
+                            <Link2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleRegenerateLinkCode(r.id, r.roomNumber, r.name)}
+                            className="p-1.5 rounded-lg border border-slate-200 hover:bg-amber-50 text-amber-600 transition cursor-pointer"
+                            title="Regenerate Link Code"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => {
@@ -1004,7 +1091,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         )}
 
         {/* =================================================================== */}
-        {/* 3. DEVICE LINKING & QR SETUP TAB */}
+        {/* 3. DEVICE PAIRING TAB */}
         {/* =================================================================== */}
         {activeTab === 'linking' && (
           <div className="space-y-5">
@@ -1012,11 +1099,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-md space-y-2">
               <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
                 <Smartphone className="w-4 h-4" />
-                <span>Single-Tap Resident Onboarding</span>
+                <span>Resident Device Pairing</span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-black">ElderWatch Hardware Binding</h2>
+              <h2 className="text-xl sm:text-2xl font-black">ElderWatch Device Setup</h2>
               <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-                Residents do not enter passwords or accounts. A staff nurse generates a one-time link or QR code, opens it once on the resident's phone, and the browser permanently stores that resident's identity in local storage, locking the screen to the high-contrast Yes/No check-in.
+                Staff visit the resident, open the pairing URL on the resident's phone, enter the pairing code, and tap "Lock This Phone to Resident". The browser permanently stores that resident's identity, locking the screen to the high-contrast Yes/No check-in.
               </p>
             </div>
 
@@ -1036,10 +1123,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
             </div>
 
-            {/* Residents Ready for QR Setup */}
+            {/* Residents Ready for Pairing */}
             <div className="space-y-3">
               <h3 className="font-bold text-sm text-slate-800">
-                Select a Resident to View / Generate Setup QR Code
+                Select a Resident to View / Generate Pairing Code
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1054,15 +1141,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </span>
                       <h4 className="font-bold text-sm text-slate-900 mt-1">{r.name}</h4>
                       <p className="text-[11px] text-slate-500">
-                        {r.isDeviceLinked ? 'Linked & Active' : 'Not yet paired'}
+                        {r.isDeviceLinked ? 'Paired & Active' : 'Not yet paired'}
                       </p>
                     </div>
                     <button
                       onClick={() => setSelectedResidentForQR(r)}
                       className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
                     >
-                      <QrCode className="w-3.5 h-3.5" />
-                      <span>Setup QR</span>
+                      <Link2 className="w-3.5 h-3.5" />
+                      <span>Pair Device</span>
                     </button>
                   </div>
                 ))}
