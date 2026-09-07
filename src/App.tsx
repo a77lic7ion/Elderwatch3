@@ -45,6 +45,14 @@ export default function App() {
         localStorage.setItem('ew_pwa_checkin_url', path);
         return match[1];
       }
+      // PWA launch: restore from saved URL
+      const savedUrl = localStorage.getItem('ew_pwa_checkin_url');
+      if (savedUrl) {
+        const savedMatch = savedUrl.match(/^\/checkin\/(.+)$/);
+        if (savedMatch) {
+          return savedMatch[1];
+        }
+      }
     }
     return null;
   });

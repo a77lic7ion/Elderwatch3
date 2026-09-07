@@ -1,11 +1,10 @@
-const CACHE_NAME = 'elderwatch-v2';
+const CACHE_NAME = 'elderwatch-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon.svg',
-  '/pwa-192x192.png',
-  '/pwa-512x512.png',
+  '/elderwatch-logo.png',
+  '/elderwatch-logo.svg',
   '/apple-touch-icon.png'
 ];
 
@@ -83,8 +82,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: '/pwa-192x192.png',
-    badge: '/icon.svg',
+    icon: '/elderwatch-logo.png',
+    badge: '/elderwatch-logo.svg',
     vibrate: [200, 100, 200],
     data: {
       url: data.url || '/'
