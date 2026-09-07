@@ -21,6 +21,15 @@ import {
 } from 'lucide-react';
 import { AdminOverview, Home } from '../types';
 import { useAppTheme } from './ThemeToggle';
+import {
+  fetchAdminOverview,
+  addHome as apiAddHome,
+  deleteHome as apiDeleteHome,
+  addStaff as apiAddStaff,
+  deleteStaff as apiDeleteStaff,
+  addResident as apiAddResident,
+  deleteResident as apiDeleteResident,
+} from '../lib/firebase-api';
 
 interface AdminOverviewViewProps {
   token: string;
@@ -73,13 +82,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/admin/overview', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        throw new Error('Failed to load admin overview');
-      }
-      const json: AdminOverview = await res.json();
+      const json: AdminOverview = await fetchAdminOverview();
       setData(json);
       if (json.homes.length > 0 && !newStaffHomeId) {
         setNewStaffHomeId(json.homes[0].id);
@@ -90,7 +93,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [token, newStaffHomeId]);
+  }, [newStaffHomeId]);
 
   useEffect(() => {
     fetchOverview();
@@ -107,26 +110,10 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
     if (!newHomeName.trim()) return;
     setSubmitting(true);
     try {
-      const res = await fetch('/api/admin/homes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: newHomeName.trim(),
-          cutoffTime: newHomeCutoff.trim() || '09:15',
-          timezone: 'Africa/Johannesburg',
-        }),
-      });
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error || 'Failed to create care home');
-      }
-      const d = await res.json();
+      const home = await apiAddHome(newHomeName.trim(), newHomeCutoff.trim() || '09:15');
       setIsAddHomeOpen(false);
       setNewHomeName('');
-      showNotification(`Care home "${d.home?.name || 'New Home'}" created successfully.`);
+      showNotification(`Care home "${home.name}" created successfully.`);
       await fetchOverview();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Failed to add home');
@@ -139,14 +126,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
   const handleDeleteHome = async (homeId: string, homeName: string) => {
     if (!confirm(`Are you sure you want to delete "${homeName}"? This will remove all associated residents and staff.`)) return;
     try {
-      const res = await fetch(`/api/admin/homes/${homeId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error || 'Failed to delete home');
-      }
+      await apiDeleteHome(homeId);
       showNotification(`Home "${homeName}" deleted.`);
       await fetchOverview();
     } catch (err: unknown) {
@@ -160,24 +140,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
     if (!newStaffName || !newStaffEmail || !newStaffPassword || !newStaffHomeId) return;
     setSubmitting(true);
     try {
-      const res = await fetch('/api/admin/staff', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: newStaffName.trim(),
-          email: newStaffEmail.trim(),
-          password: newStaffPassword.trim(),
-          role: newStaffRole,
-          homeId: newStaffHomeId,
-        }),
-      });
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error || 'Failed to add staff');
-      }
+      await apiAddStaff(newStaffName.trim(), newStaffEmail.trim(), newStaffPassword.trim(), newStaffRole, newStaffHomeId);
       setIsAddStaffOpen(false);
       setNewStaffName('');
       setNewStaffEmail('');
@@ -194,15 +157,8 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
   // Quick Reassign Staff
   const handleReassignStaff = async (staffId: string, staffName: string, targetHomeId: string) => {
     try {
-      const res = await fetch(`/api/admin/staff/${staffId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ homeId: targetHomeId }),
-      });
-      if (!res.ok) throw new Error('Failed to reassign staff member');
+      const { updateStaff } = await import('../lib/firebase-api');
+      await updateStaff(staffId, { homeId: targetHomeId });
       showNotification(`Staff member "${staffName}" reassigned.`);
       await fetchOverview();
     } catch (err: unknown) {
@@ -214,14 +170,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
   const handleDeleteStaff = async (staffId: string, staffName: string) => {
     if (!confirm(`Are you sure you want to remove staff member "${staffName}"?`)) return;
     try {
-      const res = await fetch(`/api/admin/staff/${staffId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error || 'Failed to remove staff');
-      }
+      await apiDeleteStaff(staffId);
       showNotification(`Staff member "${staffName}" removed.`);
       await fetchOverview();
     } catch (err: unknown) {
@@ -235,25 +184,14 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
     if (!newResName || !newResRoom || !newResHomeId) return;
     setSubmitting(true);
     try {
-      const res = await fetch('/api/admin/residents', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          homeId: newResHomeId,
-          name: newResName.trim(),
-          roomNumber: newResRoom.trim(),
-          phone: newResPhone.trim(),
-          emergencyContact: newResContact.trim(),
-          notes: newResNotes.trim(),
-        }),
-      });
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error || 'Failed to enroll resident');
-      }
+      await apiAddResident(
+        newResHomeId,
+        newResName.trim(),
+        newResRoom.trim(),
+        newResPhone.trim(),
+        newResContact.trim(),
+        newResNotes.trim()
+      );
       setIsAddResidentOpen(false);
       setNewResName('');
       setNewResRoom('');
@@ -273,11 +211,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
   const handleDeleteResident = async (resId: string, resName: string) => {
     if (!confirm(`Are you sure you want to delete resident record for "${resName}"?`)) return;
     try {
-      const res = await fetch(`/api/admin/residents/${resId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Failed to delete resident');
+      await apiDeleteResident(resId);
       showNotification(`Resident "${resName}" deleted.`);
       await fetchOverview();
     } catch (err: unknown) {
