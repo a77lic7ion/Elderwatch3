@@ -61,9 +61,11 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to update password in authentication' });
     }
 
-    // Update passwordHash in Firestore staff document
-    await fetch(
-      `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/staff/${staffId}`,
+    // Update ONLY passwordHash in Firestore staff document using updateMask
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/staff/${staffId}?updateMask=passwordHash`;
+    
+    const firestoreResponse = await fetch(
+      firestoreUrl,
       {
         method: 'PATCH',
         headers: {
@@ -77,6 +79,12 @@ export default async function handler(req, res) {
         }),
       }
     );
+
+    if (!firestoreResponse.ok) {
+      const fsError = await firestoreResponse.json();
+      console.error('Firestore update error:', fsError);
+      return res.status(500).json({ error: 'Failed to update password in database' });
+    }
 
     return res.status(200).json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
