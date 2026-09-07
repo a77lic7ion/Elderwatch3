@@ -63,7 +63,7 @@ export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
         createdAt: homeData.createdAt || new Date().toISOString(),
       } : {
         id: staffData.homeId,
-        name: 'Care Home',
+        name: 'Village',
         cutoffTime: '09:15',
         timezone: 'Africa/Johannesburg',
         createdAt: new Date().toISOString(),
@@ -148,7 +148,7 @@ export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
                 Staff & Admin Portal
               </h2>
               <p className={`text-xs sm:text-sm ${isNight ? 'text-slate-300' : 'text-slate-600'}`}>
-                Sign in to manage care homes, assign staff, and monitor live resident check-in statuses.
+                Sign in to manage villages, assign staff, and monitor live resident check-in statuses.
               </p>
             </div>
           </div>

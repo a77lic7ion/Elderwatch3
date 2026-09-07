@@ -70,6 +70,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
   const [isAddResidentOpen, setIsAddResidentOpen] = useState(false);
   const [newResName, setNewResName] = useState('');
   const [newResRoom, setNewResRoom] = useState('');
+  const [newResUnit, setNewResUnit] = useState('');
   const [newResHomeId, setNewResHomeId] = useState('');
   const [newResPhone, setNewResPhone] = useState('');
   const [newResContact, setNewResContact] = useState('');
@@ -190,11 +191,13 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
         newResRoom.trim(),
         newResPhone.trim(),
         newResContact.trim(),
-        newResNotes.trim()
+        newResNotes.trim(),
+        newResUnit.trim() || undefined
       );
       setIsAddResidentOpen(false);
       setNewResName('');
       setNewResRoom('');
+      setNewResUnit('');
       setNewResPhone('');
       setNewResContact('');
       setNewResNotes('');
@@ -280,7 +283,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
               className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white text-xs font-bold flex items-center gap-2 transition shadow-md shadow-emerald-950/30 cursor-pointer"
             >
               <Building2 className="w-4 h-4" />
-              <span>+ Create Care Home</span>
+              <span>+ Create Village</span>
             </button>
 
             <button
@@ -337,7 +340,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
         >
           <div className="flex items-center justify-between">
             <span className={`text-xs font-bold uppercase tracking-wider ${isNight ? 'text-slate-400' : 'text-slate-600'}`}>
-              Care Homes
+              Villages
             </span>
             <Building2 className="w-5 h-5 text-emerald-500" />
           </div>
@@ -419,7 +422,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
                 : 'bg-slate-100 text-slate-700 hover:text-slate-900'
             }`}
           >
-            1. All Care Homes ({data?.homes.length || 0})
+            1. All Villages ({data?.homes.length || 0})
           </button>
 
           <button
@@ -510,7 +513,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
                   : 'bg-slate-50 border-slate-300 text-slate-900'
               }`}
             >
-              <option value="all">All Care Homes ({data?.homes.length || 0})</option>
+              <option value="all">All Villages ({data?.homes.length || 0})</option>
               {(data?.homes || []).map((h) => (
                 <option key={h.id} value={h.id}>
                   {h.name}
@@ -574,7 +577,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
                       <button
                         onClick={() => handleDeleteHome(h.id, h.name)}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
-                        title="Delete care home"
+                        title="Delete village"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -617,7 +620,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Actions for this care home */}
+                  {/* Actions for this village */}
                   <div
                     className={`mt-5 pt-3.5 border-t space-y-2 ${
                       isNight ? 'border-slate-800' : 'border-slate-200'
@@ -698,7 +701,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
                 >
                   <tr>
                     <th className="p-4">Staff Member</th>
-                    <th className="p-4">Assigned Care Home (Quick Reassign)</th>
+                    <th className="p-4">Assigned Village (Quick Reassign)</th>
                     <th className="p-4">Role</th>
                     <th className="p-4">Email / Login</th>
                     <th className="p-4">Password</th>
@@ -830,7 +833,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
                   <tr>
                     <th className="p-4">Resident</th>
                     <th className="p-4">Room #</th>
-                    <th className="p-4">Care Home</th>
+                    <th className="p-4">Village</th>
                     <th className="p-4">Today Status</th>
                     <th className="p-4">Emergency Contact</th>
                     <th className="p-4 text-right">Actions</th>
@@ -864,12 +867,12 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
                               isNight ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-800'
                             }`}
                           >
-                            Room {r.roomNumber}
+                            Room {r.roomNumber}{r.unitNumber ? ` / ${r.unitNumber}` : ''}
                           </span>
                         </td>
 
                         <td className="p-4 font-semibold text-emerald-500">
-                          {r.homeName || 'Care Home'}
+                          {r.homeName || 'Village'}
                         </td>
 
                         <td className="p-4">
@@ -919,12 +922,12 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
           >
             <h3 className={`text-lg font-bold flex items-center gap-2 ${isNight ? 'text-white' : 'text-slate-900'}`}>
               <Building2 className="w-5 h-5 text-emerald-500" />
-              <span>Create New Care Home</span>
+              <span>Create New Village</span>
             </h3>
             <form onSubmit={handleAddHome} className="space-y-3.5 text-xs">
               <div>
                 <label className={`block font-bold mb-1 ${isNight ? 'text-slate-300' : 'text-slate-700'}`}>
-                  Care Home Facility Name
+                  Village Facility Name
                 </label>
                 <input
                   type="text"
@@ -975,7 +978,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
                   disabled={submitting}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold cursor-pointer transition shadow-sm"
                 >
-                  {submitting ? 'Creating...' : 'Create Care Home'}
+                  {submitting ? 'Creating...' : 'Create Village'}
                 </button>
               </div>
             </form>
@@ -998,7 +1001,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
             <form onSubmit={handleAddStaff} className="space-y-3.5 text-xs">
               <div>
                 <label className={`block font-bold mb-1 ${isNight ? 'text-slate-300' : 'text-slate-700'}`}>
-                  Assign to Care Home
+                  Assign to Village
                 </label>
                 <select
                   value={newStaffHomeId}
@@ -1124,12 +1127,12 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
           >
             <h3 className={`text-lg font-bold flex items-center gap-2 ${isNight ? 'text-white' : 'text-slate-900'}`}>
               <UserCheck className="w-5 h-5 text-amber-500" />
-              <span>Enroll Resident in Care Home</span>
+              <span>Enroll Resident in Village</span>
             </h3>
             <form onSubmit={handleAddResident} className="space-y-3.5 text-xs">
               <div>
                 <label className={`block font-bold mb-1 ${isNight ? 'text-slate-300' : 'text-slate-700'}`}>
-                  Select Care Home
+                  Select Village
                 </label>
                 <select
                   value={newResHomeId}
@@ -1177,6 +1180,22 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
                     placeholder="e.g. Room 14"
                     value={newResRoom}
                     onChange={(e) => setNewResRoom(e.target.value)}
+                    className={`w-full rounded-xl p-2.5 text-sm border focus:outline-hidden ${
+                      isNight
+                        ? 'bg-slate-800 border-slate-700 text-white'
+                        : 'bg-slate-50 border-slate-300 text-slate-900'
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label className={`block font-bold mb-1 ${isNight ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Unit Number (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Unit A"
+                    value={newResUnit || ''}
+                    onChange={(e) => setNewResUnit(e.target.value)}
                     className={`w-full rounded-xl p-2.5 text-sm border focus:outline-hidden ${
                       isNight
                         ? 'bg-slate-800 border-slate-700 text-white'

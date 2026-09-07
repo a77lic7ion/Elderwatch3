@@ -109,7 +109,7 @@ export const DeviceLinkScreen: React.FC<DeviceLinkScreenProps> = ({
         homeId: resident.homeId,
         residentName: resident.name,
         roomNumber: resident.roomNumber,
-        homeName: verifyResult.home?.name || 'Care Home',
+        homeName: verifyResult.home?.name || 'Village',
         linkedAt: new Date().toISOString(),
       };
 

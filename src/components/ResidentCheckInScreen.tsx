@@ -14,6 +14,7 @@ type LangCode = 'en' | 'af';
 interface ResidentProfile {
   name: string;
   room: string;
+  unit?: string;
   wing: string;
   sister: string;
   sisterInitials: string;
@@ -23,7 +24,7 @@ interface ResidentProfile {
 const DEFAULT_RESIDENT: ResidentProfile = {
   name: 'Resident',
   room: 'Room --',
-  wing: 'Care Home',
+  wing: 'Village',
   sister: 'Sister',
   sisterInitials: 'SS',
   phone: '',
@@ -59,7 +60,7 @@ const T = {
   },
   af: {
     hello: (h: number) => (h < 12 ? 'Goeie môre,' : h < 17 ? 'Goeie middag,' : 'Goeienaand,'),
-    where: (r: ResidentProfile) => `${r.room.replace('Room', 'Kamer')}, ${r.wing}`,
+    where: (r: ResidentProfile) => `${r.room.replace('Room', 'Kamer')}${r.unit ? ` / ${r.unit}` : ''}, ${r.wing}`,
     okLabel: 'Ek is reg',
     okSub: 'Tik een keer. Die susters sal weet.',
     helpLabel: 'Ek het hulp nodig',
@@ -168,7 +169,8 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
         setResidentProfile({
           name: parsed.residentName.split(' ')[0] || parsed.residentName,
           room: `Room ${parsed.roomNumber}`,
-          wing: parsed.homeName || 'Care Home',
+          unit: parsed.unitNumber,
+          wing: parsed.homeName || 'Village',
           sister: 'Sister',
           sisterInitials: initials.toUpperCase(),
           phone: '',
@@ -190,26 +192,35 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
   // Auto-bind from permanent URL
   useEffect(() => {
     if (!permanentResidentId) return;
+    console.log('[ElderWatch] Auto-bind triggered for:', permanentResidentId);
     const autoBind = async () => {
       try {
         const { db } = await import('../lib/firebase');
         const { doc, getDoc, setDoc } = await import('firebase/firestore');
 
         const residentDoc = await getDoc(doc(db, 'residents', permanentResidentId));
-        if (!residentDoc.exists()) return;
+        if (!residentDoc.exists()) {
+          console.error('[ElderWatch] Resident not found:', permanentResidentId);
+          return;
+        }
 
         const rData = residentDoc.data();
+        console.log('[ElderWatch] Resident data:', rData);
+
         const homeDoc = await getDoc(doc(db, 'homes', rData.homeId));
-        const homeName = homeDoc.exists() ? (homeDoc.data() as any).name : 'Care Home';
+        const homeName = homeDoc.exists() ? (homeDoc.data() as any).name : 'Village';
 
         const binding: DeviceBinding = {
           residentId: permanentResidentId,
           homeId: rData.homeId,
           residentName: rData.name,
           roomNumber: rData.roomNumber,
+          unitNumber: rData.unitNumber,
           homeName,
           linkedAt: new Date().toISOString(),
         };
+
+        console.log('[ElderWatch] Created binding:', JSON.stringify(binding));
 
         if (!rData.isDeviceLinked) {
           await setDoc(doc(db, 'residents', permanentResidentId), {
@@ -219,12 +230,14 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
 
         localStorage.setItem('elderwatch_device_binding', JSON.stringify(binding));
         setDeviceBinding(binding);
+        console.log('[ElderWatch] Device binding SET in state');
 
         const nameParts = binding.residentName.split(' ');
         const initials = nameParts.length > 1 ? `${nameParts[0][0]}${nameParts[1][0]}` : nameParts[0].substring(0, 2);
         setResidentProfile({
           name: binding.residentName.split(' ')[0] || binding.residentName,
           room: `Room ${binding.roomNumber}`,
+          unit: binding.unitNumber,
           wing: homeName,
           sister: 'Sister',
           sisterInitials: initials.toUpperCase(),
@@ -240,7 +253,7 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
           setView('lang_select');
         }
       } catch (e) {
-        console.error('Error auto-binding:', e);
+        console.error('[ElderWatch] Error auto-binding:', e);
       }
     };
 
@@ -288,13 +301,37 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
     const resId = deviceBinding?.residentId || 'demo';
     const hId = deviceBinding?.homeId || 'demo';
 
+    console.log('[ElderWatch] handleOkClick - deviceBinding:', JSON.stringify(deviceBinding));
+    console.log('[ElderWatch] handleOkClick - resId:', resId, 'hId:', hId);
+
     try {
       setSubmitting(true);
       localStorage.setItem(`elderwatch_checkin_${resId}_${now.toISOString().split('T')[0]}`, JSON.stringify({ status: 'ok', timestamp: now.toISOString() }));
-      await saveCheckinToFirestore(hId, resId, 'ok');
-      console.log('[ElderWatch] Check-in saved: ok', { homeId: hId, residentId: resId });
+
+      // Direct Firestore write - bypass any abstraction
+      const { db } = await import('../lib/firebase');
+      const { doc, setDoc } = await import('firebase/firestore');
+
+      // SAST date
+      const sastNow = new Date(now.getTime() + (2 * 60 * 60 * 1000));
+      const today = sastNow.toISOString().split('T')[0];
+      const docId = `${hId}_${resId}_${today}`;
+
+      console.log('[ElderWatch] Writing to Firestore doc:', docId);
+
+      await setDoc(doc(db, 'checkins', docId), {
+        id: docId,
+        homeId: hId,
+        residentId: resId,
+        date: today,
+        status: 'ok',
+        timestamp: now.toISOString(),
+        updatedBy: 'resident',
+      }, { merge: true });
+
+      console.log('[ElderWatch] Firestore write COMPLETE for doc:', docId);
     } catch (err) {
-      console.error('[ElderWatch] Failed to save check-in:', err);
+      console.error('[ElderWatch] FAILED:', err);
     } finally { setSubmitting(false); }
   };
 
@@ -310,13 +347,33 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
     const resId = deviceBinding?.residentId || 'demo';
     const hId = deviceBinding?.homeId || 'demo';
 
+    console.log('[ElderWatch] handleHelpClick - resId:', resId, 'hId:', hId);
+
     try {
       setSubmitting(true);
       localStorage.setItem(`elderwatch_checkin_${resId}_${now.toISOString().split('T')[0]}`, JSON.stringify({ status: 'not_ok', timestamp: now.toISOString() }));
-      await saveCheckinToFirestore(hId, resId, 'not_ok');
-      console.log('[ElderWatch] Check-in saved: not_ok', { homeId: hId, residentId: resId });
+
+      // Direct Firestore write
+      const { db } = await import('../lib/firebase');
+      const { doc, setDoc } = await import('firebase/firestore');
+
+      const sastNow = new Date(now.getTime() + (2 * 60 * 60 * 1000));
+      const today = sastNow.toISOString().split('T')[0];
+      const docId = `${hId}_${resId}_${today}`;
+
+      await setDoc(doc(db, 'checkins', docId), {
+        id: docId,
+        homeId: hId,
+        residentId: resId,
+        date: today,
+        status: 'not_ok',
+        timestamp: now.toISOString(),
+        updatedBy: 'resident',
+      }, { merge: true });
+
+      console.log('[ElderWatch] Help check-in SAVED:', docId);
     } catch (err) {
-      console.error('[ElderWatch] Failed to save check-in:', err);
+      console.error('[ElderWatch] FAILED:', err);
     } finally { setSubmitting(false); }
   };
 

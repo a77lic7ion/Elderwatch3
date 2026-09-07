@@ -22,6 +22,7 @@ export interface Resident {
   name: string;
   phone: string;
   roomNumber: string;
+  unitNumber?: string;
   isDeviceLinked: boolean;
   linkedAt: string | null;
   oneTimeLinkCode: string | null;
@@ -75,6 +76,7 @@ export interface DeviceBinding {
   homeId: string;
   residentName: string;
   roomNumber: string;
+  unitNumber?: string;
   homeName?: string;
   linkedAt: string;
 }

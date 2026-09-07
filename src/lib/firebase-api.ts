@@ -147,11 +147,11 @@ export async function deleteStaff(staffId: string) {
 }
 
 // Add Resident
-export async function addResident(homeId: string, name: string, roomNumber: string, phone: string, emergencyContact: string, notes: string) {
+export async function addResident(homeId: string, name: string, roomNumber: string, phone: string, emergencyContact: string, notes: string, unitNumber?: string) {
   const id = `res-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
   const linkCode = `LINK-${roomNumber.replace(/[^a-zA-Z0-9]/g, '')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
   
-  const newResident = {
+  const newResident: Record<string, any> = {
     id,
     homeId,
     name: name.trim(),
@@ -165,6 +165,10 @@ export async function addResident(homeId: string, name: string, roomNumber: stri
     pushToken: null,
     createdAt: new Date().toISOString(),
   };
+
+  if (unitNumber) {
+    newResident.unitNumber = unitNumber.trim();
+  }
   
   try {
     await setDoc(doc(db, 'residents', id), newResident);

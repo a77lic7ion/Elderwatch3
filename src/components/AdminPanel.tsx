@@ -1187,7 +1187,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <form onSubmit={handleSaveSettings} className="space-y-4 max-w-xl text-xs">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Care Home Name
+                    Village Name
                   </label>
                   <input
                     type="text"
