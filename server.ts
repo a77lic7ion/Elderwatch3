@@ -1,87 +1,32 @@
 import express from 'express';
 import path from 'path';
-import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
+import {
+  firestore,
+  FieldValue,
+  homesRef,
+  staffRef,
+  residentsRef,
+  checkinsRef,
+  jobLogsRef,
+  pushLogsRef,
+  getDocById,
+  setDocById,
+  deleteDocById,
+  getDocsByQuery,
+  getDocsByField,
+  getAllDocs,
+} from './src/lib/firebase-admin';
 
 const app = express();
 const PORT = 3000;
 
 app.use(express.json());
 
-// Multi-tenant database file path
-const DATA_DIR = path.resolve('data');
-const DATA_FILE = path.join(DATA_DIR, 'elderwatch-data.json');
+// --- Firestore-backed database helpers ---
 
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-interface DatabaseSchema {
-  homes: Record<string, {
-    id: string;
-    name: string;
-    cutoffTime: string; // "09:15"
-    timezone: string;
-    createdAt: string;
-  }>;
-  staff: Record<string, {
-    id: string;
-    homeId: string;
-    name: string;
-    email: string;
-    passwordHash: string;
-    role: 'nurse' | 'admin' | 'caregiver';
-  }>;
-  residents: Record<string, {
-    id: string;
-    homeId: string;
-    name: string;
-    phone: string;
-    roomNumber: string;
-    isDeviceLinked: boolean;
-    linkedAt: string | null;
-    oneTimeLinkCode: string | null;
-    pushToken: string | null;
-    emergencyContact?: string;
-    notes?: string;
-    createdAt: string;
-  }>;
-  checkins: Record<string, {
-    id: string;
-    homeId: string;
-    residentId: string;
-    date: string; // YYYY-MM-DD
-    status: 'awaiting' | 'ok' | 'not_ok' | 'no_response';
-    timestamp: string;
-    offlineSynced?: boolean;
-    updatedBy: 'resident' | 'staff_override' | 'cutoff_job' | 'morning_job';
-    notes?: string;
-  }>;
-  jobLogs: Array<{
-    id: string;
-    homeId: string;
-    jobType: 'morning_reset' | 'reminder_push' | 'cutoff_sweep' | 'emergency_alert';
-    description: string;
-    residentsAffected: number;
-    timestamp: string;
-    details?: string;
-  }>;
-  pushLogs: Array<{
-    id: string;
-    homeId: string;
-    targetType: 'resident' | 'staff' | 'all_awaiting';
-    recipientName: string;
-    title: string;
-    body: string;
-    timestamp: string;
-    status: 'delivered' | 'queued' | 'simulated';
-  }>;
-}
-
-// Get today date string in SAST (Africa/Johannesburg, UTC+2)
 export function getTodaySAST(): string {
   const now = new Date();
-  // Adjust to UTC+2
   const sastDate = new Date(now.getTime() + (2 * 60 * 60 * 1000));
   return sastDate.toISOString().split('T')[0];
 }
@@ -89,76 +34,308 @@ export function getTodaySAST(): string {
 export function getCurrentTimeSAST(): string {
   const now = new Date();
   const sastDate = new Date(now.getTime() + (2 * 60 * 60 * 1000));
-  return sastDate.toISOString().substring(11, 16); // "HH:mm"
+  return sastDate.toISOString().substring(11, 16);
 }
 
-// Initial Database Seeding
-function getInitialData(): DatabaseSchema {
-  const today = getTodaySAST();
+// Seed Firestore with initial data if empty
+async function seedFirestore() {
+  const homesSnap = await getAllDocs('homes');
+  if (homesSnap.length > 0) {
+    console.log('[SEED] Firestore already seeded, skipping.');
+    return;
+  }
+
+  console.log('[SEED] Seeding Firestore with initial data...');
   const nowISO = new Date().toISOString();
 
-  return {
-    homes: {
-      'home-methodist-1': {
-        id: 'home-methodist-1',
-        name: 'Methodist Home 1',
-        cutoffTime: '09:15',
-        timezone: 'Africa/Johannesburg',
-        createdAt: nowISO,
-      },
-    },
-    staff: {
-      'admin-shaun': {
-        id: 'admin-shaun',
-        homeId: 'home-methodist-1',
-        name: 'Shaun Gordon',
-        email: 'shaunwgordon@gmail.com',
-        passwordHash: 'B33tl3sL1lly@123',
-        role: 'admin',
-      },
-      'staff-mary': {
-        id: 'staff-mary',
-        homeId: 'home-methodist-1',
-        name: 'Mary Nurse',
-        email: 'marynurse@methodist.care',
-        passwordHash: 'Marynurse@123',
-        role: 'nurse',
-      },
-    },
-    residents: {},
-    checkins: {},
-    jobLogs: [],
-    pushLogs: [],
-  };
+  // Create default home
+  const homeId = 'home-methodist-1';
+  await setDocById('homes', homeId, {
+    id: homeId,
+    name: 'Methodist Home 1',
+    cutoffTime: '09:15',
+    timezone: 'Africa/Johannesburg',
+    createdAt: nowISO,
+  });
+
+  // Create default admin
+  await setDocById('staff', 'admin-shaun', {
+    id: 'admin-shaun',
+    homeId,
+    name: 'Shaun Gordon',
+    email: 'shaunwgordon@gmail.com',
+    passwordHash: 'B33tl3sL1lly@123',
+    role: 'admin',
+  });
+
+  // Create default nurse
+  await setDocById('staff', 'staff-mary', {
+    id: 'staff-mary',
+    homeId,
+    name: 'Mary Nurse',
+    email: 'marynurse@methodist.care',
+    passwordHash: 'Marynurse@123',
+    role: 'nurse',
+  });
+
+  console.log('[SEED] Seeded home, admin, and nurse.');
 }
 
-let db: DatabaseSchema;
+// Ensure today's check-in records exist for all residents in a home
+async function ensureTodayCheckins(homeId: string) {
+  const today = getTodaySAST();
+  const residents = await getDocsByField('residents', 'homeId', homeId);
+  let createdCount = 0;
 
-function loadDatabase(): DatabaseSchema {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-      return JSON.parse(raw);
+  for (const resident of residents) {
+    const checkinId = `${homeId}_${resident.id}_${today}`;
+    const existing = await getDocById('checkins', checkinId);
+    if (!existing) {
+      await setDocById('checkins', checkinId, {
+        id: checkinId,
+        homeId,
+        residentId: resident.id,
+        date: today,
+        status: 'awaiting',
+        timestamp: new Date().toISOString(),
+        updatedBy: 'morning_job',
+      });
+      createdCount++;
     }
-  } catch (err) {
-    console.error('Error loading database file, re-initializing:', err);
   }
-  const initial = getInitialData();
-  saveDatabase(initial);
-  return initial;
-}
 
-function saveDatabase(data: DatabaseSchema) {
-  try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Failed to save database file:', err);
+  if (createdCount > 0) {
+    console.log(`[SEED] Created ${createdCount} checkins for today.`);
   }
 }
 
-db = loadDatabase();
+// --- Scheduled Jobs Engine ---
 
-// Connected SSE clients by homeId
+export async function runMorningResetJob(homeId?: string) {
+  const today = getTodaySAST();
+  const targetHomes = homeId
+    ? [await getDocById('homes', homeId)].filter(Boolean)
+    : await getAllDocs('homes');
+
+  let totalResidentsReset = 0;
+
+  for (const home of targetHomes) {
+    if (!home) continue;
+    const residents = await getDocsByField('residents', 'homeId', home.id);
+    for (const resident of residents) {
+      const checkinId = `${home.id}_${resident.id}_${today}`;
+      await setDocById('checkins', checkinId, {
+        id: checkinId,
+        homeId: home.id,
+        residentId: resident.id,
+        date: today,
+        status: 'awaiting',
+        timestamp: new Date().toISOString(),
+        updatedBy: 'morning_job',
+      });
+      totalResidentsReset++;
+    }
+
+    const jobLogId = `job-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    await setDocById('jobLogs', jobLogId, {
+      id: jobLogId,
+      homeId: home.id,
+      jobType: 'morning_reset',
+      description: `07:00 SAST Morning Reset: ${residents.length} residents reset to "awaiting"`,
+      residentsAffected: residents.length,
+      timestamp: new Date().toISOString(),
+    });
+
+    const pushLogId = `push-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    await setDocById('pushLogs', pushLogId, {
+      id: pushLogId,
+      homeId: home.id,
+      targetType: 'all_awaiting',
+      recipientName: `All ${home.name} Residents`,
+      title: 'ElderWatch Morning Check-in',
+      body: 'Good morning! Please tap your screen to confirm you are safe and well.',
+      timestamp: new Date().toISOString(),
+      status: 'delivered',
+    });
+
+    broadcastToHome(home.id, 'checkin_updated', {
+      type: 'morning_reset',
+      message: 'Morning reset executed.',
+    });
+  }
+
+  return totalResidentsReset;
+}
+
+export async function runReminderPushJob(homeId?: string) {
+  const today = getTodaySAST();
+  const targetHomes = homeId
+    ? [await getDocById('homes', homeId)].filter(Boolean)
+    : await getAllDocs('homes');
+
+  let totalReminded = 0;
+
+  for (const home of targetHomes) {
+    if (!home) continue;
+    const residents = await getDocsByField('residents', 'homeId', home.id);
+    let awaitingCount = 0;
+
+    for (const resident of residents) {
+      const checkinId = `${home.id}_${resident.id}_${today}`;
+      const checkin = await getDocById('checkins', checkinId);
+      if (!checkin || checkin.status === 'awaiting') {
+        awaitingCount++;
+        const pushLogId = `push-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+        await setDocById('pushLogs', pushLogId, {
+          id: pushLogId,
+          homeId: home.id,
+          targetType: 'resident',
+          recipientName: `${resident.name} (Room ${resident.roomNumber})`,
+          title: 'ElderWatch Reminder',
+          body: 'Friendly reminder: Please tap Yes or No on your screen before cutoff.',
+          timestamp: new Date().toISOString(),
+          status: 'delivered',
+        });
+      }
+    }
+
+    totalReminded += awaitingCount;
+
+    const jobLogId = `job-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    await setDocById('jobLogs', jobLogId, {
+      id: jobLogId,
+      homeId: home.id,
+      jobType: 'reminder_push',
+      description: `08:45 SAST Reminder: Sent to ${awaitingCount} residents still awaiting check-in`,
+      residentsAffected: awaitingCount,
+      timestamp: new Date().toISOString(),
+    });
+
+    broadcastToHome(home.id, 'reminder_sent', {
+      type: 'reminder_push',
+      count: awaitingCount,
+    });
+  }
+
+  return totalReminded;
+}
+
+export async function runCutoffSweepJob(homeId?: string) {
+  const today = getTodaySAST();
+  const targetHomes = homeId
+    ? [await getDocById('homes', homeId)].filter(Boolean)
+    : await getAllDocs('homes');
+
+  let totalMarkedNoResponse = 0;
+
+  for (const home of targetHomes) {
+    if (!home) continue;
+    const residents = await getDocsByField('residents', 'homeId', home.id);
+    let homeCount = 0;
+
+    for (const resident of residents) {
+      const checkinId = `${home.id}_${resident.id}_${today}`;
+      const checkin = await getDocById('checkins', checkinId);
+      if (checkin && checkin.status === 'awaiting') {
+        await setDocById('checkins', checkinId, {
+          ...checkin,
+          status: 'no_response',
+          timestamp: new Date().toISOString(),
+          updatedBy: 'cutoff_job',
+          notes: `Passed cutoff time (${home.cutoffTime} SAST). Automatically marked as no_response.`,
+        });
+        homeCount++;
+        totalMarkedNoResponse++;
+      }
+    }
+
+    if (homeCount > 0) {
+      const jobLogId = `job-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      await setDocById('jobLogs', jobLogId, {
+        id: jobLogId,
+        homeId: home.id,
+        jobType: 'cutoff_sweep',
+        description: `Cutoff Sweep (${home.cutoffTime} SAST): ${homeCount} residents marked as "no_response"`,
+        residentsAffected: homeCount,
+        timestamp: new Date().toISOString(),
+      });
+
+      broadcastToHome(home.id, 'checkin_updated', {
+        type: 'cutoff_sweep',
+        message: `${homeCount} residents transitioned to no_response.`,
+      });
+    }
+  }
+
+  return totalMarkedNoResponse;
+}
+
+// Trigger emergency alert on "not_ok"
+async function triggerEmergencyAlert(homeId: string, residentId: string) {
+  const resident = await getDocById('residents', residentId);
+  const home = await getDocById('homes', homeId);
+  if (!resident || !home) return;
+
+  const jobLogId = `alert-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  await setDocById('jobLogs', jobLogId, {
+    id: jobLogId,
+    homeId,
+    jobType: 'emergency_alert',
+    description: `URGENT: ${resident.name} (Room ${resident.roomNumber}) tapped "I need help"!`,
+    residentsAffected: 1,
+    timestamp: new Date().toISOString(),
+    details: `Immediate dispatch broadcasted to all active nursing staff. Room: ${resident.roomNumber}, Phone: ${resident.phone}`,
+  });
+
+  const pushLogId = `push-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  await setDocById('pushLogs', pushLogId, {
+    id: pushLogId,
+    homeId,
+    targetType: 'staff',
+    recipientName: `${home.name} Staff On-Duty`,
+    title: `EMERGENCY: Room ${resident.roomNumber}`,
+    body: `${resident.name} has pressed "I need help". Please check Room ${resident.roomNumber} immediately!`,
+    timestamp: new Date().toISOString(),
+    status: 'delivered',
+  });
+
+  broadcastToHome(homeId, 'urgent_alert', {
+    residentId: resident.id,
+    residentName: resident.name,
+    roomNumber: resident.roomNumber,
+    phone: resident.phone,
+    timestamp: new Date().toISOString(),
+    alertText: `${resident.name} in Room ${resident.roomNumber} tapped "I need help"`,
+  });
+}
+
+// Background Interval for SAST cron triggers
+let lastExecutedMinute = '';
+setInterval(async () => {
+  const currentTime = getCurrentTimeSAST();
+  if (currentTime === lastExecutedMinute) return;
+  lastExecutedMinute = currentTime;
+
+  if (currentTime === '07:00') {
+    console.log('[CRON SAST] 07:00 SAST reached: executing morning reset job');
+    await runMorningResetJob();
+  }
+
+  if (currentTime === '08:45') {
+    console.log('[CRON SAST] 08:45 SAST reached: executing reminder push job');
+    await runReminderPushJob();
+  }
+
+  const homes = await getAllDocs('homes');
+  for (const home of homes) {
+    if ((home as any).cutoffTime === currentTime) {
+      console.log(`[CRON SAST] Cutoff time ${currentTime} reached for ${(home as any).name}`);
+      await runCutoffSweepJob((home as any).id);
+    }
+  }
+}, 30000);
+
+// --- SSE Clients ---
 const sseClients: Map<string, Set<express.Response>> = new Map();
 
 function broadcastToHome(homeId: string, event: string, payload: unknown) {
@@ -175,308 +352,60 @@ function broadcastToHome(homeId: string, event: string, payload: unknown) {
   }
 }
 
-// Ensure today's check-in records exist for all residents in a home
-function ensureTodayCheckins(homeId: string) {
-  const today = getTodaySAST();
-  const residents = Object.values(db.residents).filter((r) => r.homeId === homeId);
-  let createdCount = 0;
-
-  for (const resident of residents) {
-    const checkinId = `${homeId}_${resident.id}_${today}`;
-    if (!db.checkins[checkinId]) {
-      db.checkins[checkinId] = {
-        id: checkinId,
-        homeId,
-        residentId: resident.id,
-        date: today,
-        status: 'awaiting',
-        timestamp: new Date().toISOString(),
-        updatedBy: 'morning_job',
-      };
-      createdCount++;
-    }
-  }
-
-  if (createdCount > 0) {
-    saveDatabase(db);
-  }
-}
-
-// Scheduled Jobs Engine:
-// 1. Morning Reset (07:00 SAST)
-export function runMorningResetJob(homeId?: string) {
-  const today = getTodaySAST();
-  const targetHomes = homeId ? [db.homes[homeId]].filter(Boolean) : Object.values(db.homes);
-
-  let totalResidentsReset = 0;
-
-  for (const home of targetHomes) {
-    const residents = Object.values(db.residents).filter((r) => r.homeId === home.id);
-    for (const resident of residents) {
-      const checkinId = `${home.id}_${resident.id}_${today}`;
-      db.checkins[checkinId] = {
-        id: checkinId,
-        homeId: home.id,
-        residentId: resident.id,
-        date: today,
-        status: 'awaiting',
-        timestamp: new Date().toISOString(),
-        updatedBy: 'morning_job',
-      };
-      totalResidentsReset++;
-    }
-
-    // Log job execution
-    const jobLog = {
-      id: `job-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      homeId: home.id,
-      jobType: 'morning_reset' as const,
-      description: `07:00 SAST Morning Reset: ${residents.length} residents reset to "awaiting"`,
-      residentsAffected: residents.length,
-      timestamp: new Date().toISOString(),
-    };
-    db.jobLogs.unshift(jobLog);
-
-    // Push notification to residents
-    const pushLog = {
-      id: `push-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      homeId: home.id,
-      targetType: 'all_awaiting' as const,
-      recipientName: `All ${home.name} Residents`,
-      title: 'ElderWatch Morning Check-in',
-      body: 'Good morning! Please tap your screen to confirm you are safe and well.',
-      timestamp: new Date().toISOString(),
-      status: 'delivered' as const,
-    };
-    db.pushLogs.unshift(pushLog);
-
-    broadcastToHome(home.id, 'checkin_updated', {
-      type: 'morning_reset',
-      message: 'Morning reset executed.',
-    });
-  }
-
-  saveDatabase(db);
-  return totalResidentsReset;
-}
-
-// 2. Reminder Push (08:45 SAST)
-export function runReminderPushJob(homeId?: string) {
-  const today = getTodaySAST();
-  const targetHomes = homeId ? [db.homes[homeId]].filter(Boolean) : Object.values(db.homes);
-  let totalReminded = 0;
-
-  for (const home of targetHomes) {
-    const awaitingResidents = Object.values(db.residents).filter((r) => {
-      if (r.homeId !== home.id) return false;
-      const checkin = db.checkins[`${home.id}_${r.id}_${today}`];
-      return !checkin || checkin.status === 'awaiting';
-    });
-
-    totalReminded += awaitingResidents.length;
-
-    const jobLog = {
-      id: `job-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      homeId: home.id,
-      jobType: 'reminder_push' as const,
-      description: `08:45 SAST Reminder: Sent to ${awaitingResidents.length} residents still awaiting check-in`,
-      residentsAffected: awaitingResidents.length,
-      timestamp: new Date().toISOString(),
-    };
-    db.jobLogs.unshift(jobLog);
-
-    for (const resident of awaitingResidents) {
-      db.pushLogs.unshift({
-        id: `push-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        homeId: home.id,
-        targetType: 'resident' as const,
-        recipientName: `${resident.name} (Room ${resident.roomNumber})`,
-        title: 'ElderWatch Reminder',
-        body: 'Friendly reminder: Please tap Yes or No on your screen before cutoff.',
-        timestamp: new Date().toISOString(),
-        status: 'delivered' as const,
-      });
-    }
-
-    broadcastToHome(home.id, 'reminder_sent', {
-      type: 'reminder_push',
-      count: awaitingResidents.length,
-    });
-  }
-
-  saveDatabase(db);
-  return totalReminded;
-}
-
-// 3. Cutoff Sweep (09:15 SAST or custom cutoff)
-export function runCutoffSweepJob(homeId?: string) {
-  const today = getTodaySAST();
-  const targetHomes = homeId ? [db.homes[homeId]].filter(Boolean) : Object.values(db.homes);
-  let totalMarkedNoResponse = 0;
-
-  for (const home of targetHomes) {
-    const residents = Object.values(db.residents).filter((r) => r.homeId === home.id);
-    let homeCount = 0;
-
-    for (const resident of residents) {
-      const checkinId = `${home.id}_${resident.id}_${today}`;
-      const checkin = db.checkins[checkinId];
-      if (checkin && checkin.status === 'awaiting') {
-        checkin.status = 'no_response';
-        checkin.timestamp = new Date().toISOString();
-        checkin.updatedBy = 'cutoff_job';
-        checkin.notes = `Passed cutoff time (${home.cutoffTime} SAST). Automatically marked as no_response.`;
-        homeCount++;
-        totalMarkedNoResponse++;
-      }
-    }
-
-    if (homeCount > 0) {
-      const jobLog = {
-        id: `job-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        homeId: home.id,
-        jobType: 'cutoff_sweep' as const,
-        description: `Cutoff Sweep (${home.cutoffTime} SAST): ${homeCount} residents marked as "no_response"`,
-        residentsAffected: homeCount,
-        timestamp: new Date().toISOString(),
-      };
-      db.jobLogs.unshift(jobLog);
-
-      broadcastToHome(home.id, 'checkin_updated', {
-        type: 'cutoff_sweep',
-        message: `${homeCount} residents transitioned to no_response.`,
-      });
-    }
-  }
-
-  saveDatabase(db);
-  return totalMarkedNoResponse;
-}
-
-// Trigger emergency alert on "not_ok"
-function triggerEmergencyAlert(homeId: string, residentId: string) {
-  const resident = db.residents[residentId];
-  const home = db.homes[homeId];
-  if (!resident || !home) return;
-
-  const jobLog = {
-    id: `alert-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-    homeId,
-    jobType: 'emergency_alert' as const,
-    description: `🚨 URGENT: ${resident.name} (Room ${resident.roomNumber}) tapped "I need help"!`,
-    residentsAffected: 1,
-    timestamp: new Date().toISOString(),
-    details: `Immediate dispatch broadcasted to all active nursing staff. Room: ${resident.roomNumber}, Phone: ${resident.phone}`,
-  };
-  db.jobLogs.unshift(jobLog);
-
-  // Push log for staff
-  const pushLog = {
-    id: `push-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-    homeId,
-    targetType: 'staff' as const,
-    recipientName: `${home.name} Staff On-Duty`,
-    title: `🚨 EMERGENCY: Room ${resident.roomNumber}`,
-    body: `${resident.name} has pressed "I need help". Please check Room ${resident.roomNumber} immediately!`,
-    timestamp: new Date().toISOString(),
-    status: 'delivered' as const,
-  };
-  db.pushLogs.unshift(pushLog);
-
-  saveDatabase(db);
-
-  // Broadcast immediate urgent alert event over SSE
-  broadcastToHome(homeId, 'urgent_alert', {
-    residentId: resident.id,
-    residentName: resident.name,
-    roomNumber: resident.roomNumber,
-    phone: resident.phone,
-    timestamp: new Date().toISOString(),
-    alertText: `${resident.name} in Room ${resident.roomNumber} tapped "I need help"`,
-  });
-}
-
-// Background Interval for SAST cron triggers (checks every 30 seconds)
-let lastExecutedMinute = '';
-setInterval(() => {
-  const currentTime = getCurrentTimeSAST(); // "HH:mm"
-  if (currentTime === lastExecutedMinute) return;
-  lastExecutedMinute = currentTime;
-
-  // 07:00 SAST Morning Reset
-  if (currentTime === '07:00') {
-    console.log('[CRON SAST] 07:00 SAST reached: executing morning reset job');
-    runMorningResetJob();
-  }
-
-  // 08:45 SAST Reminder
-  if (currentTime === '08:45') {
-    console.log('[CRON SAST] 08:45 SAST reached: executing reminder push job');
-    runReminderPushJob();
-  }
-
-  // Home-specific cutoffs (e.g. 09:15)
-  for (const home of Object.values(db.homes)) {
-    if (home.cutoffTime === currentTime) {
-      console.log(`[CRON SAST] Cutoff time ${currentTime} reached for ${home.name}`);
-      runCutoffSweepJob(home.id);
-    }
-  }
-}, 30000);
-
 // --- REST API ROUTES ---
 
-// Health check
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  const homes = await getAllDocs('homes');
+  const residents = await getAllDocs('residents');
   res.json({
     status: 'ok',
     currentTimeSAST: getCurrentTimeSAST(),
     todaySAST: getTodaySAST(),
-    homesCount: Object.keys(db.homes).length,
-    residentsCount: Object.keys(db.residents).length,
+    homesCount: homes.length,
+    residentsCount: residents.length,
   });
 });
 
-// Staff Authentication (Email & Password, home-scoped or enterprise admin)
-app.post('/api/auth/login', (req, res) => {
+// Staff Authentication
+app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required' });
   }
 
-  const query = email.toLowerCase().trim();
-  const staff = Object.values(db.staff).find((s) => {
+  const queryLower = email.toLowerCase().trim();
+  const allStaff = await getAllDocs('staff');
+  const staff = allStaff.find((s: any) => {
     const sEmail = s.email.toLowerCase().trim();
     const sName = s.name.toLowerCase().trim();
     const sNameClean = sName.replace(/\s+/g, '');
-    const queryClean = query.replace(/\s+/g, '');
-    return sEmail === query || sName === query || sNameClean === queryClean;
+    const queryClean = queryLower.replace(/\s+/g, '');
+    return sEmail === queryLower || sName === queryLower || sNameClean === queryClean;
   });
 
-  if (!staff || staff.passwordHash !== password) {
+  if (!staff || (staff as any).passwordHash !== password) {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
 
-  const home = db.homes[staff.homeId] || Object.values(db.homes)[0];
-  // Simple session token carrying user and home info
+  const home = await getDocById('homes', (staff as any).homeId);
   const token = Buffer.from(
-    JSON.stringify({ staffId: staff.id, homeId: home?.id || staff.homeId, role: staff.role, time: Date.now() })
+    JSON.stringify({ staffId: staff.id, homeId: home?.id || (staff as any).homeId, role: (staff as any).role, time: Date.now() })
   ).toString('base64');
 
   res.json({
     token,
     user: {
       id: staff.id,
-      homeId: staff.homeId,
-      name: staff.name,
-      email: staff.email,
-      role: staff.role,
+      homeId: (staff as any).homeId,
+      name: (staff as any).name,
+      email: (staff as any).email,
+      role: (staff as any).role,
     },
     home: home || null,
   });
 });
 
-// Helper to authenticate staff from Bearer token
+// Helper to authenticate staff
 function authenticateStaff(req: express.Request, res: express.Response): { staffId: string; homeId: string; role?: string } | null {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -491,9 +420,8 @@ function authenticateStaff(req: express.Request, res: express.Response): { staff
       res.status(401).json({ error: 'Invalid token structure.' });
       return null;
     }
-    // If admin is requesting data for a specific home via x-home-id header or query param, honor that homeId
     const requestedHome = (req.headers['x-home-id'] as string) || (req.query.homeId as string);
-    if (parsed.role === 'admin' && requestedHome && db.homes[requestedHome]) {
+    if (parsed.role === 'admin' && requestedHome) {
       return { staffId: parsed.staffId, homeId: requestedHome, role: parsed.role };
     }
     return parsed;
@@ -503,68 +431,69 @@ function authenticateStaff(req: express.Request, res: express.Response): { staff
   }
 }
 
-// Helper to authenticate admin
 function authenticateAdmin(req: express.Request, res: express.Response): { staffId: string; homeId: string } | null {
   const auth = authenticateStaff(req, res);
   if (!auth) return null;
-  const staff = db.staff[auth.staffId];
-  if (!staff || staff.role !== 'admin') {
+  if (auth.role !== 'admin') {
     res.status(403).json({ error: 'Forbidden. Administrator privileges required.' });
     return null;
   }
   return auth;
 }
 
-// Public endpoint: Get available staff demo accounts for login testing
-app.get('/api/auth/demo-accounts', (req, res) => {
-  const accounts = Object.values(db.staff).map((s) => ({
-    id: s.id,
-    name: s.name,
-    email: s.email,
-    password: s.passwordHash,
-    role: s.role,
-    homeId: s.homeId,
-    homeName: db.homes[s.homeId]?.name || 'Care Home',
+// Demo accounts
+app.get('/api/auth/demo-accounts', async (req, res) => {
+  const allStaff = await getAllDocs('staff');
+  const accounts = await Promise.all(allStaff.map(async (s: any) => {
+    const home = await getDocById('homes', s.homeId);
+    return {
+      id: s.id,
+      name: s.name,
+      email: s.email,
+      password: s.passwordHash,
+      role: s.role,
+      homeId: s.homeId,
+      homeName: home?.name || 'Care Home',
+    };
   }));
   res.json({ accounts });
 });
 
 // --- ENTERPRISE ADMIN API ROUTES ---
 
-// 1. Admin System Overview: All homes, staff assigned per home, residents per home
-app.get('/api/admin/overview', (req, res) => {
+app.get('/api/admin/overview', async (req, res) => {
   const admin = authenticateAdmin(req, res);
   if (!admin) return;
 
-  const homesList = Object.values(db.homes).map((h) => {
-    const staffCount = Object.values(db.staff).filter((s) => s.homeId === h.id).length;
-    const residentsCount = Object.values(db.residents).filter((r) => r.homeId === h.id).length;
-    return {
-      ...h,
-      staffCount,
-      residentsCount,
-    };
-  });
+  const homes = await getAllDocs('homes');
+  const allStaff = await getAllDocs('staff');
+  const allResidents = await getAllDocs('residents');
+  const today = getTodaySAST();
 
-  const staffList = Object.values(db.staff).map((s) => ({
+  const homesList = await Promise.all(homes.map(async (h: any) => {
+    const staffCount = allStaff.filter((s: any) => s.homeId === h.id).length;
+    const residentsCount = allResidents.filter((r: any) => r.homeId === h.id).length;
+    return { ...h, staffCount, residentsCount };
+  }));
+
+  const staffList = allStaff.map((s: any) => ({
     id: s.id,
     homeId: s.homeId,
-    homeName: db.homes[s.homeId]?.name || 'Unassigned',
+    homeName: homes.find((h: any) => h.id === s.homeId)?.name || 'Unassigned',
     name: s.name,
     email: s.email,
     password: s.passwordHash,
     role: s.role,
   }));
 
-  const today = getTodaySAST();
-  const residentsList = Object.values(db.residents).map((r) => {
-    const checkin = db.checkins[`${r.homeId}_${r.id}_${today}`];
+  const residentsList = await Promise.all(allResidents.map(async (r: any) => {
+    const checkin = await getDocById('checkins', `${r.homeId}_${r.id}_${today}`);
     return {
       ...r,
-      homeName: db.homes[r.homeId]?.name || 'Unknown Home',
+      homeName: homes.find((h: any) => h.id === r.homeId)?.name || 'Unknown Home',
       todayStatus: checkin ? checkin.status : 'awaiting',
     };
-  });
+  }));
 
   res.json({
     homes: homesList,
@@ -578,8 +507,7 @@ app.get('/api/admin/overview', (req, res) => {
   });
 });
 
-// 2. Admin Create New Home
-app.post('/api/admin/homes', (req, res) => {
+app.post('/api/admin/homes', async (req, res) => {
   const admin = authenticateAdmin(req, res);
   if (!admin) return;
 
@@ -597,52 +525,53 @@ app.post('/api/admin/homes', (req, res) => {
     createdAt: new Date().toISOString(),
   };
 
-  db.homes[id] = newHome;
-  saveDatabase(db);
+  await setDocById('homes', id, newHome);
   res.json({ success: true, home: newHome });
 });
 
-// 3. Admin Update Home
-app.patch('/api/admin/homes/:id', (req, res) => {
+app.patch('/api/admin/homes/:id', async (req, res) => {
   const admin = authenticateAdmin(req, res);
   if (!admin) return;
 
-  const home = db.homes[req.params.id];
+  const home = await getDocById('homes', req.params.id);
   if (!home) return res.status(404).json({ error: 'Home not found' });
 
   const { name, cutoffTime, timezone } = req.body;
-  if (name) home.name = name.trim();
-  if (cutoffTime) home.cutoffTime = cutoffTime.trim();
-  if (timezone) home.timezone = timezone.trim();
+  const updated: any = { ...home };
+  if (name) updated.name = name.trim();
+  if (cutoffTime) updated.cutoffTime = cutoffTime.trim();
+  if (timezone) updated.timezone = timezone.trim();
 
-  saveDatabase(db);
-  res.json({ success: true, home });
+  await setDocById('homes', req.params.id, updated);
+  res.json({ success: true, home: updated });
 });
 
-// 4. Admin Delete Home
-app.delete('/api/admin/homes/:id', (req, res) => {
+app.delete('/api/admin/homes/:id', async (req, res) => {
   const admin = authenticateAdmin(req, res);
   if (!admin) return;
 
   const homeId = req.params.id;
-  if (Object.keys(db.homes).length <= 1) {
+  const homes = await getAllDocs('homes');
+  if (homes.length <= 1) {
     return res.status(400).json({ error: 'Cannot delete the only remaining home.' });
   }
 
-  delete db.homes[homeId];
-  for (const [sId, s] of Object.entries(db.staff)) {
-    if (s.homeId === homeId) delete db.staff[sId];
-  }
-  for (const [rId, r] of Object.entries(db.residents)) {
-    if (r.homeId === homeId) delete db.residents[rId];
+  await deleteDocById('homes', homeId);
+
+  const staff = await getDocsByField('staff', 'homeId', homeId);
+  for (const s of staff) {
+    await deleteDocById('staff', s.id);
   }
 
-  saveDatabase(db);
+  const residents = await getDocsByField('residents', 'homeId', homeId);
+  for (const r of residents) {
+    await deleteDocById('residents', r.id);
+  }
+
   res.json({ success: true });
 });
 
-// 5. Admin Create/Assign Staff to Home
-app.post('/api/admin/staff', (req, res) => {
+app.post('/api/admin/staff', async (req, res) => {
   const admin = authenticateAdmin(req, res);
   if (!admin) return;
 
@@ -651,7 +580,8 @@ app.post('/api/admin/staff', (req, res) => {
     return res.status(400).json({ error: 'Name, email, password, and home assignment are required' });
   }
 
-  if (!db.homes[homeId]) {
+  const home = await getDocById('homes', homeId);
+  if (!home) {
     return res.status(400).json({ error: 'Selected care home does not exist' });
   }
 
@@ -665,48 +595,47 @@ app.post('/api/admin/staff', (req, res) => {
     role: (role || 'nurse') as 'nurse' | 'admin' | 'caregiver',
   };
 
-  db.staff[id] = newStaff;
-  saveDatabase(db);
+  await setDocById('staff', id, newStaff);
   res.json({ success: true, staff: newStaff });
 });
 
-// 6. Admin Update Staff Member
-app.patch('/api/admin/staff/:id', (req, res) => {
+app.patch('/api/admin/staff/:id', async (req, res) => {
   const admin = authenticateAdmin(req, res);
   if (!admin) return;
 
-  const staff = db.staff[req.params.id];
+  const staff = await getDocById('staff', req.params.id);
   if (!staff) return res.status(404).json({ error: 'Staff member not found' });
 
   const { name, email, password, role, homeId } = req.body;
-  if (name) staff.name = name.trim();
-  if (email) staff.email = email.trim().toLowerCase();
-  if (password) staff.passwordHash = password.trim();
-  if (role) staff.role = role;
-  if (homeId && db.homes[homeId]) staff.homeId = homeId;
+  const updated: any = { ...staff };
+  if (name) updated.name = name.trim();
+  if (email) updated.email = email.trim().toLowerCase();
+  if (password) updated.passwordHash = password.trim();
+  if (role) updated.role = role;
+  if (homeId) {
+    const home = await getDocById('homes', homeId);
+    if (home) updated.homeId = homeId;
+  }
 
-  saveDatabase(db);
-  res.json({ success: true, staff });
+  await setDocById('staff', req.params.id, updated);
+  res.json({ success: true, staff: updated });
 });
 
-// 7. Admin Delete Staff Member
-app.delete('/api/admin/staff/:id', (req, res) => {
+app.delete('/api/admin/staff/:id', async (req, res) => {
   const admin = authenticateAdmin(req, res);
   if (!admin) return;
 
-  const staff = db.staff[req.params.id];
+  const staff = await getDocById('staff', req.params.id);
   if (!staff) return res.status(404).json({ error: 'Staff member not found' });
-  if (staff.email === 'shaunwgordon@gmail.com') {
+  if ((staff as any).email === 'shaunwgordon@gmail.com') {
     return res.status(400).json({ error: 'Cannot delete primary enterprise administrator.' });
   }
 
-  delete db.staff[req.params.id];
-  saveDatabase(db);
+  await deleteDocById('staff', req.params.id);
   res.json({ success: true });
 });
 
-// 8. Admin Add Resident to Specific Home
-app.post('/api/admin/residents', (req, res) => {
+app.post('/api/admin/residents', async (req, res) => {
   const admin = authenticateAdmin(req, res);
   if (!admin) return;
 
@@ -733,29 +662,30 @@ app.post('/api/admin/residents', (req, res) => {
     createdAt: new Date().toISOString(),
   };
 
-  db.residents[id] = newResident;
-  saveDatabase(db);
+  await setDocById('residents', id, newResident);
   res.json({ success: true, resident: newResident });
 });
 
-// 9. Admin Delete Resident
-app.delete('/api/admin/residents/:id', (req, res) => {
+app.delete('/api/admin/residents/:id', async (req, res) => {
   const admin = authenticateAdmin(req, res);
   if (!admin) return;
 
-  const resident = db.residents[req.params.id];
+  const resident = await getDocById('residents', req.params.id);
   if (!resident) return res.status(404).json({ error: 'Resident not found' });
 
-  delete db.residents[req.params.id];
-  for (const [cId, c] of Object.entries(db.checkins)) {
-    if (c.residentId === req.params.id) delete db.checkins[cId];
+  await deleteDocById('residents', req.params.id);
+
+  const checkins = await getDocsByQuery(
+    query(checkinsRef, where('residentId', '==', req.params.id))
+  );
+  for (const c of checkins) {
+    await deleteDocById('checkins', c.id);
   }
 
-  saveDatabase(db);
   res.json({ success: true });
 });
 
-// Real-Time Server-Sent Events (SSE) scoped by homeId
+// SSE Endpoint
 app.get('/api/realtime', (req, res) => {
   const homeId = req.query.homeId as string;
   if (!homeId) {
@@ -772,7 +702,6 @@ app.get('/api/realtime', (req, res) => {
   }
   sseClients.get(homeId)!.add(res);
 
-  // Send initial connection heartbeat
   res.write(`event: connected\ndata: ${JSON.stringify({ homeId, time: new Date().toISOString() })}\n\n`);
 
   const keepAliveInterval = setInterval(() => {
@@ -795,68 +724,57 @@ app.get('/api/realtime', (req, res) => {
   });
 });
 
-// Get Home details and settings
-app.get('/api/home', (req, res) => {
+// Home endpoints
+app.get('/api/home', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
 
-  const home = db.homes[auth.homeId];
-  if (!home) {
-    return res.status(404).json({ error: 'Home not found' });
-  }
-
+  const home = await getDocById('homes', auth.homeId);
+  if (!home) return res.status(404).json({ error: 'Home not found' });
   res.json({ home });
 });
 
-// Update Home settings (name, cutoff time)
-app.patch('/api/home/settings', (req, res) => {
+app.patch('/api/home/settings', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
 
-  const home = db.homes[auth.homeId];
-  if (!home) {
-    return res.status(404).json({ error: 'Home not found' });
-  }
+  const home = await getDocById('homes', auth.homeId);
+  if (!home) return res.status(404).json({ error: 'Home not found' });
 
   const { name, cutoffTime } = req.body;
-  if (name && typeof name === 'string') {
-    home.name = name.trim();
-  }
-  if (cutoffTime && typeof cutoffTime === 'string') {
-    home.cutoffTime = cutoffTime.trim();
-  }
+  const updated: any = { ...home };
+  if (name && typeof name === 'string') updated.name = name.trim();
+  if (cutoffTime && typeof cutoffTime === 'string') updated.cutoffTime = cutoffTime.trim();
 
-  saveDatabase(db);
-  broadcastToHome(auth.homeId, 'home_updated', { home });
-  res.json({ success: true, home });
+  await setDocById('homes', auth.homeId, updated);
+  broadcastToHome(auth.homeId, 'home_updated', { home: updated });
+  res.json({ success: true, home: updated });
 });
 
-// Get all residents for staff's home + today's checkin status
-app.get('/api/residents', (req, res) => {
+// Residents endpoints
+app.get('/api/residents', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
 
-  ensureTodayCheckins(auth.homeId);
+  await ensureTodayCheckins(auth.homeId);
   const today = getTodaySAST();
 
-  const residentsList = Object.values(db.residents)
-    .filter((r) => r.homeId === auth.homeId)
-    .map((r) => {
-      const checkin = db.checkins[`${auth.homeId}_${r.id}_${today}`];
-      return {
-        ...r,
-        todayStatus: checkin ? checkin.status : 'awaiting',
-        todayTimestamp: checkin ? checkin.timestamp : null,
-        todayUpdatedBy: checkin ? checkin.updatedBy : null,
-        notes: r.notes || '',
-      };
-    });
+  const residents = await getDocsByField('residents', 'homeId', auth.homeId);
+  const residentsList = await Promise.all(residents.map(async (r: any) => {
+    const checkin = await getDocById('checkins', `${auth.homeId}_${r.id}_${today}`);
+    return {
+      ...r,
+      todayStatus: checkin ? checkin.status : 'awaiting',
+      todayTimestamp: checkin ? checkin.timestamp : null,
+      todayUpdatedBy: checkin ? checkin.updatedBy : null,
+      notes: r.notes || '',
+    };
+  }));
 
   res.json({ residents: residentsList });
 });
 
-// Add new resident
-app.post('/api/residents', (req, res) => {
+app.post('/api/residents', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
 
@@ -883,12 +801,11 @@ app.post('/api/residents', (req, res) => {
     createdAt: new Date().toISOString(),
   };
 
-  db.residents[newId] = newResident;
+  await setDocById('residents', newId, newResident);
 
-  // Initialize today's checkin
   const today = getTodaySAST();
   const checkinId = `${auth.homeId}_${newId}_${today}`;
-  db.checkins[checkinId] = {
+  await setDocById('checkins', checkinId, {
     id: checkinId,
     homeId: auth.homeId,
     residentId: newId,
@@ -896,155 +813,141 @@ app.post('/api/residents', (req, res) => {
     status: 'awaiting',
     timestamp: new Date().toISOString(),
     updatedBy: 'morning_job',
-  };
+  });
 
-  saveDatabase(db);
   broadcastToHome(auth.homeId, 'resident_added', { resident: newResident });
-
   res.status(201).json({ resident: newResident });
 });
 
-// Edit resident
-app.put('/api/residents/:id', (req, res) => {
+app.put('/api/residents/:id', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
 
-  const resident = db.residents[req.params.id];
-  if (!resident || resident.homeId !== auth.homeId) {
+  const resident = await getDocById('residents', req.params.id);
+  if (!resident || (resident as any).homeId !== auth.homeId) {
     return res.status(404).json({ error: 'Resident not found in this home' });
   }
 
   const { name, phone, roomNumber, emergencyContact, notes } = req.body;
-  if (name) resident.name = name.trim();
-  if (phone !== undefined) resident.phone = phone.trim();
-  if (roomNumber) resident.roomNumber = roomNumber.trim();
-  if (emergencyContact !== undefined) resident.emergencyContact = emergencyContact.trim();
-  if (notes !== undefined) resident.notes = notes.trim();
+  const updated: any = { ...resident };
+  if (name) updated.name = name.trim();
+  if (phone !== undefined) updated.phone = phone.trim();
+  if (roomNumber) updated.roomNumber = roomNumber.trim();
+  if (emergencyContact !== undefined) updated.emergencyContact = emergencyContact.trim();
+  if (notes !== undefined) updated.notes = notes.trim();
 
-  saveDatabase(db);
-  broadcastToHome(auth.homeId, 'resident_updated', { resident });
-  res.json({ resident });
+  await setDocById('residents', req.params.id, updated);
+  broadcastToHome(auth.homeId, 'resident_updated', { resident: updated });
+  res.json({ resident: updated });
 });
 
-// Delete resident
-app.delete('/api/residents/:id', (req, res) => {
+app.delete('/api/residents/:id', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
 
-  const resident = db.residents[req.params.id];
-  if (!resident || resident.homeId !== auth.homeId) {
+  const resident = await getDocById('residents', req.params.id);
+  if (!resident || (resident as any).homeId !== auth.homeId) {
     return res.status(404).json({ error: 'Resident not found in this home' });
   }
 
-  delete db.residents[req.params.id];
+  await deleteDocById('residents', req.params.id);
 
-  // Clean up checkins
-  for (const [key, val] of Object.entries(db.checkins)) {
-    if (val.residentId === req.params.id) {
-      delete db.checkins[key];
-    }
+  const checkins = await getDocsByQuery(
+    query(checkinsRef, where('residentId', '==', req.params.id))
+  );
+  for (const c of checkins) {
+    await deleteDocById('checkins', c.id);
   }
 
-  saveDatabase(db);
   broadcastToHome(auth.homeId, 'resident_deleted', { residentId: req.params.id });
   res.json({ success: true });
 });
 
-// Generate or regenerate One-Time Link code for resident setup
-app.post('/api/residents/:id/link-code', (req, res) => {
+app.post('/api/residents/:id/link-code', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
 
-  const resident = db.residents[req.params.id];
-  if (!resident || resident.homeId !== auth.homeId) {
+  const resident = await getDocById('residents', req.params.id);
+  if (!resident || (resident as any).homeId !== auth.homeId) {
     return res.status(404).json({ error: 'Resident not found in this home' });
   }
 
-  const linkCode = `LINK-${resident.roomNumber.replace(/[^a-zA-Z0-9]/g, '')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-  resident.oneTimeLinkCode = linkCode;
-  resident.isDeviceLinked = false;
-  resident.linkedAt = null;
+  const linkCode = `LINK-${(resident as any).roomNumber.replace(/[^a-zA-Z0-9]/g, '')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+  const updated = {
+    ...resident,
+    oneTimeLinkCode: linkCode,
+    isDeviceLinked: false,
+    linkedAt: null,
+  };
 
-  saveDatabase(db);
-  broadcastToHome(auth.homeId, 'resident_updated', { resident });
-
-  res.json({
-    linkCode,
-    resident,
-  });
+  await setDocById('residents', req.params.id, updated);
+  broadcastToHome(auth.homeId, 'resident_updated', { resident: updated });
+  res.json({ linkCode, resident: updated });
 });
 
-// Device Linking: Verify code
-app.get('/api/link/verify', (req, res) => {
+// Device Linking
+app.get('/api/link/verify', async (req, res) => {
   const code = req.query.code as string;
-  if (!code) {
-    return res.status(400).json({ error: 'Link code is required' });
-  }
+  if (!code) return res.status(400).json({ error: 'Link code is required' });
 
-  const resident = Object.values(db.residents).find(
-    (r) => r.oneTimeLinkCode && r.oneTimeLinkCode.toUpperCase() === code.trim().toUpperCase()
-  );
+  const residents = await getAllDocs('residents');
+  const resident = residents.find((r: any) => r.oneTimeLinkCode && r.oneTimeLinkCode.toUpperCase() === code.trim().toUpperCase());
 
   if (!resident) {
     return res.status(404).json({ error: 'Invalid, expired, or already used linking code.' });
   }
 
-  const home = db.homes[resident.homeId];
+  const home = await getDocById('homes', (resident as any).homeId);
   res.json({
     valid: true,
     resident: {
       id: resident.id,
-      name: resident.name,
-      roomNumber: resident.roomNumber,
-      homeId: resident.homeId,
+      name: (resident as any).name,
+      roomNumber: (resident as any).roomNumber,
+      homeId: (resident as any).homeId,
     },
     home: home ? { id: home.id, name: home.name } : null,
   });
 });
 
-// Device Linking: Bind device permanently
-app.post('/api/link/bind', (req, res) => {
+app.post('/api/link/bind', async (req, res) => {
   const { code, pushToken } = req.body;
-  if (!code) {
-    return res.status(400).json({ error: 'Link code is required' });
-  }
+  if (!code) return res.status(400).json({ error: 'Link code is required' });
 
-  const resident = Object.values(db.residents).find(
-    (r) => r.oneTimeLinkCode && r.oneTimeLinkCode.toUpperCase() === code.trim().toUpperCase()
-  );
+  const residents = await getAllDocs('residents');
+  const resident = residents.find((r: any) => r.oneTimeLinkCode && r.oneTimeLinkCode.toUpperCase() === code.trim().toUpperCase());
 
   if (!resident) {
     return res.status(404).json({ error: 'Invalid, expired, or already used linking code.' });
   }
 
-  resident.isDeviceLinked = true;
-  resident.linkedAt = new Date().toISOString();
-  resident.oneTimeLinkCode = null; // Consume the one-time code
-  if (pushToken) {
-    resident.pushToken = pushToken;
-  }
+  const updated: any = {
+    ...resident,
+    isDeviceLinked: true,
+    linkedAt: new Date().toISOString(),
+    oneTimeLinkCode: null,
+  };
+  if (pushToken) updated.pushToken = pushToken;
 
-  saveDatabase(db);
-  broadcastToHome(resident.homeId, 'resident_linked', { resident });
+  await setDocById('residents', resident.id, updated);
+  broadcastToHome((resident as any).homeId, 'resident_linked', { resident: updated });
 
-  const home = db.homes[resident.homeId];
-
+  const home = await getDocById('homes', (resident as any).homeId);
   res.json({
     success: true,
     binding: {
       residentId: resident.id,
-      homeId: resident.homeId,
-      residentName: resident.name,
-      roomNumber: resident.roomNumber,
+      homeId: (resident as any).homeId,
+      residentName: (resident as any).name,
+      roomNumber: (resident as any).roomNumber,
       homeName: home ? home.name : 'Care Home',
-      linkedAt: resident.linkedAt,
+      linkedAt: updated.linkedAt,
     },
   });
 });
 
-// Resident Check-in Submit (Green "Yes" or Red "No")
-// No login required — authenticated via residentId and homeId
-app.post('/api/checkin', (req, res) => {
+// Check-in endpoints
+app.post('/api/checkin', async (req, res) => {
   const { residentId, homeId, status, offlineSynced } = req.body;
   if (!residentId || !homeId || !status) {
     return res.status(400).json({ error: 'residentId, homeId, and status are required' });
@@ -1054,8 +957,8 @@ app.post('/api/checkin', (req, res) => {
     return res.status(400).json({ error: 'Invalid status value. Must be "ok" or "not_ok"' });
   }
 
-  const resident = db.residents[residentId];
-  if (!resident || resident.homeId !== homeId) {
+  const resident = await getDocById('residents', residentId);
+  if (!resident || (resident as any).homeId !== homeId) {
     return res.status(404).json({ error: 'Resident not found in this home' });
   }
 
@@ -1068,47 +971,43 @@ app.post('/api/checkin', (req, res) => {
     homeId,
     residentId,
     date: today,
-    status: status as 'ok' | 'not_ok',
+    status,
     timestamp: nowISO,
     offlineSynced: !!offlineSynced,
-    updatedBy: 'resident' as const,
+    updatedBy: 'resident',
   };
 
-  db.checkins[checkinId] = checkinRecord;
-  saveDatabase(db);
+  await setDocById('checkins', checkinId, checkinRecord);
 
-  // Broadcast to staff live dashboard
   broadcastToHome(homeId, 'checkin_updated', {
     residentId,
     status,
     timestamp: nowISO,
-    residentName: resident.name,
-    roomNumber: resident.roomNumber,
+    residentName: (resident as any).name,
+    roomNumber: (resident as any).roomNumber,
   });
 
-  // If status is "not_ok", trigger immediate urgent alert!
   if (status === 'not_ok') {
-    triggerEmergencyAlert(homeId, residentId);
+    await triggerEmergencyAlert(homeId, residentId);
   }
 
   res.json({
     success: true,
     checkin: checkinRecord,
-    residentName: resident.name,
-    roomNumber: resident.roomNumber,
+    residentName: (resident as any).name,
+    roomNumber: (resident as any).roomNumber,
     timestamp: nowISO,
   });
 });
 
-// Resident Undo Check-in (if tapped by mistake)
-app.post('/api/checkin/undo', (req, res) => {
+app.post('/api/checkin/undo', async (req, res) => {
   const { residentId, homeId } = req.body;
   if (!residentId || !homeId) {
     return res.status(400).json({ error: 'residentId and homeId are required' });
   }
 
-  const resident = db.residents[residentId];
-  if (!resident || resident.homeId !== homeId) {
+  const resident = await getDocById('residents', residentId);
+  if (!resident || (resident as any).homeId !== homeId) {
     return res.status(404).json({ error: 'Resident not found in this home' });
   }
 
@@ -1121,32 +1020,26 @@ app.post('/api/checkin/undo', (req, res) => {
     homeId,
     residentId,
     date: today,
-    status: 'awaiting' as const,
+    status: 'awaiting',
     timestamp: nowISO,
-    updatedBy: 'resident' as const,
+    updatedBy: 'resident',
     notes: 'Check-in undone by resident',
   };
 
-  db.checkins[checkinId] = checkinRecord;
-  saveDatabase(db);
+  await setDocById('checkins', checkinId, checkinRecord);
 
   broadcastToHome(homeId, 'checkin_updated', {
     residentId,
     status: 'awaiting',
     timestamp: nowISO,
-    residentName: resident.name,
-    roomNumber: resident.roomNumber,
+    residentName: (resident as any).name,
+    roomNumber: (resident as any).roomNumber,
   });
 
-  res.json({
-    success: true,
-    status: 'awaiting',
-    timestamp: nowISO,
-  });
+  res.json({ success: true, status: 'awaiting', timestamp: nowISO });
 });
 
-// Staff Manual Checkin Override (e.g. nurse checked in room in person)
-app.post('/api/checkins/staff-override', (req, res) => {
+app.post('/api/checkins/staff-override', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
 
@@ -1155,8 +1048,8 @@ app.post('/api/checkins/staff-override', (req, res) => {
     return res.status(400).json({ error: 'residentId and status are required' });
   }
 
-  const resident = db.residents[residentId];
-  if (!resident || resident.homeId !== auth.homeId) {
+  const resident = await getDocById('residents', residentId);
+  if (!resident || (resident as any).homeId !== auth.homeId) {
     return res.status(404).json({ error: 'Resident not found in this home' });
   }
 
@@ -1169,14 +1062,13 @@ app.post('/api/checkins/staff-override', (req, res) => {
     homeId: auth.homeId,
     residentId,
     date: today,
-    status: status as 'awaiting' | 'ok' | 'not_ok' | 'no_response',
+    status,
     timestamp: nowISO,
-    updatedBy: 'staff_override' as const,
+    updatedBy: 'staff_override',
     notes: notes || 'Updated manually by staff',
   };
 
-  db.checkins[checkinId] = record;
-  saveDatabase(db);
+  await setDocById('checkins', checkinId, record);
 
   broadcastToHome(auth.homeId, 'checkin_updated', {
     residentId,
@@ -1186,61 +1078,59 @@ app.post('/api/checkins/staff-override', (req, res) => {
   });
 
   if (status === 'not_ok') {
-    triggerEmergencyAlert(auth.homeId, residentId);
+    await triggerEmergencyAlert(auth.homeId, residentId);
   }
 
   res.json({ success: true, checkin: record });
 });
 
-// Resident Check-in History (recent 7 days)
-app.get('/api/residents/:id/history', (req, res) => {
+// Resident History
+app.get('/api/residents/:id/history', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
 
-  const resident = db.residents[req.params.id];
-  if (!resident || resident.homeId !== auth.homeId) {
+  const resident = await getDocById('residents', req.params.id);
+  if (!resident || (resident as any).homeId !== auth.homeId) {
     return res.status(404).json({ error: 'Resident not found' });
   }
 
-  const history = Object.values(db.checkins)
-    .filter((c) => c.residentId === resident.id && c.homeId === auth.homeId)
-    .sort((a, b) => (a.date > b.date ? -1 : 1))
+  const allCheckins = await getDocsByQuery(
+    query(checkinsRef, where('residentId', '==', resident.id), where('homeId', '==', auth.homeId))
+  );
+  const history = allCheckins
+    .sort((a: any, b: any) => (a.date > b.date ? -1 : 1))
     .slice(0, 14);
 
   res.json({ resident, history });
 });
 
-// Scheduled Job Execution Trigger API (Manual triggers for staff & testing)
-app.post('/api/jobs/trigger-morning-reset', (req, res) => {
+// Job triggers
+app.post('/api/jobs/trigger-morning-reset', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
-
-  const count = runMorningResetJob(auth.homeId);
+  const count = await runMorningResetJob(auth.homeId);
   res.json({ success: true, message: `07:00 Morning Reset executed for ${count} residents.` });
 });
 
-app.post('/api/jobs/trigger-reminder-push', (req, res) => {
+app.post('/api/jobs/trigger-reminder-push', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
-
-  const count = runReminderPushJob(auth.homeId);
+  const count = await runReminderPushJob(auth.homeId);
   res.json({ success: true, message: `08:45 Reminders dispatched to ${count} awaiting residents.` });
 });
 
-app.post('/api/jobs/trigger-cutoff-sweep', (req, res) => {
+app.post('/api/jobs/trigger-cutoff-sweep', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
-
-  const count = runCutoffSweepJob(auth.homeId);
+  const count = await runCutoffSweepJob(auth.homeId);
   res.json({ success: true, message: `Cutoff sweep executed. ${count} residents marked no_response.` });
 });
 
-// Simulate Emergency Alert (for live triage testing)
-app.post('/api/jobs/simulate-emergency', (req, res) => {
+app.post('/api/jobs/simulate-emergency', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
 
-  const residents = Object.values(db.residents).filter((r) => r.homeId === auth.homeId);
+  const residents = await getDocsByField('residents', 'homeId', auth.homeId);
   if (residents.length === 0) {
     return res.status(400).json({ error: 'No residents available in home' });
   }
@@ -1250,7 +1140,7 @@ app.post('/api/jobs/simulate-emergency', (req, res) => {
   const checkinId = `${auth.homeId}_${targetResident.id}_${today}`;
   const nowISO = new Date().toISOString();
 
-  db.checkins[checkinId] = {
+  await setDocById('checkins', checkinId, {
     id: checkinId,
     homeId: auth.homeId,
     residentId: targetResident.id,
@@ -1259,32 +1149,34 @@ app.post('/api/jobs/simulate-emergency', (req, res) => {
     timestamp: nowISO,
     updatedBy: 'resident',
     notes: 'Simulated emergency "No" tap for demonstration.',
-  };
+  });
 
-  triggerEmergencyAlert(auth.homeId, targetResident.id);
+  await triggerEmergencyAlert(auth.homeId, targetResident.id);
   res.json({
     success: true,
-    message: `Emergency alert triggered for ${targetResident.name} (Room ${targetResident.roomNumber}).`,
+    message: `Emergency alert triggered for ${(targetResident as any).name} (Room ${(targetResident as any).roomNumber}).`,
   });
 });
 
-// Logs for Admin inspection
-app.get('/api/jobs/logs', (req, res) => {
+// Logs
+app.get('/api/jobs/logs', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
 
-  const logs = db.jobLogs
-    .filter((l) => l.homeId === auth.homeId)
-    .slice(0, 30);
+  const allJobLogs = await getDocsByQuery(
+    query(jobLogsRef, where('homeId', '==', auth.homeId))
+  );
+  const allPushLogs = await getDocsByQuery(
+    query(pushLogsRef, where('homeId', '==', auth.homeId))
+  );
 
-  const pushes = db.pushLogs
-    .filter((p) => p.homeId === auth.homeId)
-    .slice(0, 30);
+  const logs = allJobLogs.sort((a: any, b: any) => (a.timestamp > b.timestamp ? -1 : 1)).slice(0, 30);
+  const pushes = allPushLogs.sort((a: any, b: any) => (a.timestamp > b.timestamp ? -1 : 1)).slice(0, 30);
 
   res.json({ jobLogs: logs, pushLogs: pushes });
 });
 
-// Architecture evaluation data endpoint (for evaluator transparency)
+// System endpoints
 app.get('/api/system/evaluation', (req, res) => {
   res.json({
     backendChoice: 'Unified Node.js / Express Container Service (Cloud Run / VPS)',
@@ -1292,36 +1184,35 @@ app.get('/api/system/evaluation', (req, res) => {
       {
         platform: 'Firebase (Firestore + Auth + Functions)',
         costAt10kScale: 'Exceeds free tier daily limits ($20-$50/mo minimum)',
-        verdict: 'Spark plan strictly caps writes at 20k/day. 10,000 residents generate 20k-30k writes/day (morning reset + check-in + cutoff). Functions require Blaze paid plan.',
+        verdict: 'Spark plan strictly caps writes at 20k/day. 10,000 residents generate 20k-30k writes/day.',
       },
       {
         platform: 'Supabase (PostgreSQL + Realtime)',
         costAt10kScale: 'Free tier limits concurrent realtime clients to 200 ($25/mo Pro required)',
-        verdict: 'Free tier automatically sleeps projects after 7 days of inactivity (unacceptable risk for frailcare health monitoring).',
+        verdict: 'Free tier automatically sleeps projects after 7 days of inactivity.',
       },
       {
         platform: 'Cloudflare Workers + D1',
         costAt10kScale: 'Realtime requires Paid Workers with Durable Objects ($5/mo)',
-        verdict: 'Workers free tier has 100k requests/day, but real-time SSE/WebSockets requires Durable Objects (Paid plan).',
+        verdict: 'Workers free tier has 100k requests/day, but real-time SSE/WebSockets requires Durable Objects.',
       },
       {
         platform: 'Unified Node.js / Express on Container (Selected)',
         costAt10kScale: '$0.00 / month (Cloud Run Free Tier or $4/mo VPS)',
-        verdict: '2,000,000 requests/mo and 360k vCPU-secs free. 10k daily check-ins take <5s of CPU time. Built-in SSE, zero per-write fees, native cron, zero sleeping databases.',
+        verdict: '2,000,000 requests/mo and 360k vCPU-secs free.',
       },
     ],
   });
 });
 
-// Multi-tenant Home Switcher helper for testing (lists all homes)
-app.get('/api/system/homes', (req, res) => {
-  res.json({
-    homes: Object.values(db.homes),
-  });
+app.get('/api/system/homes', async (req, res) => {
+  const homes = await getAllDocs('homes');
+  res.json({ homes });
 });
 
 async function startServer() {
-  // Vite integration
+  await seedFirestore();
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
