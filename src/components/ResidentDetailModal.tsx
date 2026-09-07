@@ -76,9 +76,12 @@ export const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
       const sastDate = new Date(now.getTime() + (2 * 60 * 60 * 1000));
       const today = sastDate.toISOString().split('T')[0];
 
-      // Write check-in directly to Firestore
-      const checkinRef = doc(db, 'checkins', `${resident.id}_${today}`);
-      await setDoc(checkinRef, {
+      // Use the same document ID format as saveCheckinToFirestore: ${homeId}_${residentId}_${today}
+      const checkinId = `${resident.homeId}_${resident.id}_${today}`;
+      const checkinRef = doc(db, 'checkins', checkinId);
+      
+      const payload = {
+        id: checkinId,
         residentId: resident.id,
         homeId: resident.homeId,
         date: today,
@@ -86,9 +89,11 @@ export const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
         timestamp: now.toISOString(),
         notes: overrideNotes || `Staff manual check-in: ${newStatus.toUpperCase()}`,
         updatedBy: 'staff_override',
-      }, { merge: true });
+      };
 
-      console.log(`[ElderWatch] Staff override: ${resident.name} -> ${newStatus}`);
+      await setDoc(checkinRef, payload, { merge: true });
+
+      console.log(`[ElderWatch] Staff override: ${resident.name} -> ${newStatus}`, payload);
       onStatusUpdated();
       setShowOverrideForm(false);
       setOverrideNotes('');
