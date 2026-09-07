@@ -371,6 +371,13 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
         // Check if language is already set
         const savedLang = localStorage.getItem('ew_lang');
         if (savedLang === 'af' || savedLang === 'en') {
+          setLang(savedLang);
+          setView('linked');
+          setTimeout(() => setView('morning'), 2000);
+        } else if (rData.language === 'af' || rData.language === 'en') {
+          const firebaseLang = rData.language as LangCode;
+          setLang(firebaseLang);
+          localStorage.setItem('ew_lang', firebaseLang);
           setView('linked');
           setTimeout(() => setView('morning'), 2000);
         } else {
@@ -412,6 +419,23 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
   const handleLangSelect = (newLang: LangCode) => {
     setLang(newLang);
     localStorage.setItem('ew_lang', newLang);
+
+    // Persist language preference to Firestore if a device binding exists
+    const saveLanguageToFirestore = async () => {
+      try {
+        const { db } = await import('../lib/firebase');
+        const { doc, setDoc } = await import('firebase/firestore');
+        const bindingRaw = localStorage.getItem('elderwatch_device_binding');
+        if (!bindingRaw) return;
+        const binding: DeviceBinding = JSON.parse(bindingRaw);
+        await setDoc(doc(db, 'residents', binding.residentId), { language: newLang }, { merge: true });
+      } catch (e) {
+        console.error('[ElderWatch] Failed to save language preference:', e);
+      }
+    };
+
+    saveLanguageToFirestore();
+
     if (deviceBinding) {
       setView('linked');
       setTimeout(() => setView('morning'), 2000);

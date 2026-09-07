@@ -32,6 +32,7 @@ export interface Resident {
   emergencyContactNumber?: string;
   notes?: string;
   createdAt: string;
+  language?: string;
 }
 
 export interface CheckIn {
