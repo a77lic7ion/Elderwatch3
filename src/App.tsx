@@ -204,7 +204,6 @@ export default function App() {
           ) : (
             <StaffLoginScreen
               onLoginSuccess={handleLoginSuccess}
-              onNavigateToResidentScreen={() => navigate('checkin')}
             />
           )}
         </>

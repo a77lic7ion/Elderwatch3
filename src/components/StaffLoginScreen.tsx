@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Lock, Mail, AlertCircle, Smartphone, ArrowRight } from 'lucide-react';
+import { Shield, Lock, Mail, AlertCircle, HelpCircle } from 'lucide-react';
 import { StaffUser, Home } from '../types';
 import { ThemeToggle, useAppTheme } from './ThemeToggle';
 import { loginWithEmail, db } from '../lib/firebase';
@@ -7,12 +7,10 @@ import { doc, getDoc } from 'firebase/firestore';
 
 interface StaffLoginScreenProps {
   onLoginSuccess: (token: string, user: StaffUser, home: Home) => void;
-  onNavigateToResidentScreen: () => void;
 }
 
 export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
   onLoginSuccess,
-  onNavigateToResidentScreen,
 }) => {
   const [isNight] = useAppTheme();
   const [email, setEmail] = useState('');
@@ -87,6 +85,13 @@ export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
     }
   };
 
+  const handleForgotPassword = () => {
+    const userEmail = email || 'my email';
+    const message = `Hi Shaun, please can you reset my password for ElderWatch. My login email is: ${userEmail}`;
+    const whatsappUrl = `https://wa.me/27713162849?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   return (
     <div
       className={`min-h-screen flex flex-col justify-between p-6 sm:p-10 transition-colors duration-200 ${
@@ -113,18 +118,6 @@ export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
 
         <div className="flex items-center gap-3">
           <ThemeToggle />
-
-          <button
-            onClick={onNavigateToResidentScreen}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition cursor-pointer ${
-              isNight
-                ? 'border-slate-800 bg-slate-900 text-slate-200 hover:text-white hover:bg-slate-800'
-                : 'border-slate-300 bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <Smartphone className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Switch to Resident Screen</span>
-          </button>
         </div>
       </div>
 
@@ -209,9 +202,21 @@ export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
               className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 font-bold text-white text-sm shadow-lg shadow-emerald-950/50 transition cursor-pointer flex items-center justify-center gap-2"
             >
               <span>{loading ? 'Authenticating...' : 'Sign In to Dashboard'}</span>
-              <ArrowRight className="w-4 h-4" />
             </button>
           </form>
+
+          {/* Forgot Password */}
+          <div className="text-center">
+            <button
+              onClick={handleForgotPassword}
+              className={`text-xs font-semibold flex items-center justify-center gap-1.5 mx-auto transition cursor-pointer ${
+                isNight ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-600 hover:text-emerald-700'
+              }`}
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Forgot Password?</span>
+            </button>
+          </div>
         </div>
       </div>
 

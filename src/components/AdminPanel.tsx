@@ -427,9 +427,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
           {/* Brand & Home Scope */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center text-white font-black text-xl shadow-md">
-              EW
-            </div>
+            <img src="/elderwatch-logo.png" alt="ElderWatch" className="w-10 h-10 rounded-2xl shadow-md" />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className={`font-extrabold text-base sm:text-lg tracking-tight ${isNight ? 'text-white' : 'text-slate-900'}`}>
