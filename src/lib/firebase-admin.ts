@@ -1,5 +1,5 @@
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, Query, QueryConstraint } from 'firebase-admin/firestore';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -64,4 +64,13 @@ export async function getDocsByField(collectionName: string, fieldName: string, 
 export async function getDocsByQuery(queryObj: any): Promise<any[]> {
   const snapshot = await queryObj.get();
   return snapshot.docs.map((docSnap: any) => ({ id: docSnap.id, ...docSnap.data() }));
+}
+
+// Build a query with where conditions
+export function buildQuery(collectionName: string, conditions: Array<{field: string, op: string, value: any}>): any {
+  let q: any = firestore.collection(collectionName);
+  for (const cond of conditions) {
+    q = q.where(cond.field, cond.op, cond.value);
+  }
+  return q;
 }

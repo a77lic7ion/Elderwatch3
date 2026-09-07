@@ -16,6 +16,7 @@ import {
   getDocsByQuery,
   getDocsByField,
   getAllDocs,
+  buildQuery,
 } from './src/lib/firebase-admin';
 
 const app = express();
@@ -441,24 +442,6 @@ function authenticateAdmin(req: express.Request, res: express.Response): { staff
   return auth;
 }
 
-// Demo accounts
-app.get('/api/auth/demo-accounts', async (req, res) => {
-  const allStaff = await getAllDocs('staff');
-  const accounts = await Promise.all(allStaff.map(async (s: any) => {
-    const home = await getDocById('homes', s.homeId);
-    return {
-      id: s.id,
-      name: s.name,
-      email: s.email,
-      password: s.passwordHash,
-      role: s.role,
-      homeId: s.homeId,
-      homeName: home?.name || 'Care Home',
-    };
-  }));
-  res.json({ accounts });
-});
-
 // --- ENTERPRISE ADMIN API ROUTES ---
 
 app.get('/api/admin/overview', async (req, res) => {
@@ -676,7 +659,7 @@ app.delete('/api/admin/residents/:id', async (req, res) => {
   await deleteDocById('residents', req.params.id);
 
   const checkins = await getDocsByQuery(
-    query(checkinsRef, where('residentId', '==', req.params.id))
+    buildQuery('checkins', [{field: 'residentId', op: '==', value: req.params.id}])
   );
   for (const c of checkins) {
     await deleteDocById('checkins', c.id);
@@ -853,7 +836,7 @@ app.delete('/api/residents/:id', async (req, res) => {
   await deleteDocById('residents', req.params.id);
 
   const checkins = await getDocsByQuery(
-    query(checkinsRef, where('residentId', '==', req.params.id))
+    buildQuery('checkins', [{field: 'residentId', op: '==', value: req.params.id}])
   );
   for (const c of checkins) {
     await deleteDocById('checkins', c.id);
@@ -1095,7 +1078,7 @@ app.get('/api/residents/:id/history', async (req, res) => {
   }
 
   const allCheckins = await getDocsByQuery(
-    query(checkinsRef, where('residentId', '==', resident.id), where('homeId', '==', auth.homeId))
+    buildQuery('checkins', [{field: 'residentId', op: '==', value: resident.id}, {field: 'homeId', op: '==', value: auth.homeId}])
   );
   const history = allCheckins
     .sort((a: any, b: any) => (a.date > b.date ? -1 : 1))
@@ -1164,10 +1147,10 @@ app.get('/api/jobs/logs', async (req, res) => {
   if (!auth) return;
 
   const allJobLogs = await getDocsByQuery(
-    query(jobLogsRef, where('homeId', '==', auth.homeId))
+    buildQuery('jobLogs', [{field: 'homeId', op: '==', value: auth.homeId}])
   );
   const allPushLogs = await getDocsByQuery(
-    query(pushLogsRef, where('homeId', '==', auth.homeId))
+    buildQuery('pushLogs', [{field: 'homeId', op: '==', value: auth.homeId}])
   );
 
   const logs = allJobLogs.sort((a: any, b: any) => (a.timestamp > b.timestamp ? -1 : 1)).slice(0, 30);

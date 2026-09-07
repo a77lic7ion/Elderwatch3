@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Shield, Lock, Mail, AlertCircle, Smartphone, Building, Sparkles, UserCheck, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Shield, Lock, Mail, AlertCircle, Smartphone, ArrowRight } from 'lucide-react';
 import { StaffUser, Home } from '../types';
 import { ThemeToggle, useAppTheme } from './ThemeToggle';
 
@@ -8,59 +8,15 @@ interface StaffLoginScreenProps {
   onNavigateToResidentScreen: () => void;
 }
 
-interface DemoAccount {
-  id: string;
-  name: string;
-  email: string;
-  password?: string;
-  role: string;
-  homeId: string;
-  homeName: string;
-}
-
 export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
   onLoginSuccess,
   onNavigateToResidentScreen,
 }) => {
   const [isNight] = useAppTheme();
-  const [email, setEmail] = useState('shaunwgordon@gmail.com');
-  const [password, setPassword] = useState('B33tl3sL1lly@123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [demoAccounts, setDemoAccounts] = useState<DemoAccount[]>([]);
-
-  useEffect(() => {
-    fetch('/api/auth/demo-accounts')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && Array.isArray(data.accounts)) {
-          setDemoAccounts(data.accounts);
-        }
-      })
-      .catch(() => {
-        // Fallback to static accounts if network fails
-        setDemoAccounts([
-          {
-            id: 'staff-admin-shaun',
-            name: 'Shaun Gordon',
-            email: 'shaunwgordon@gmail.com',
-            password: 'B33tl3sL1lly@123',
-            role: 'admin',
-            homeId: 'home-methodist-1',
-            homeName: 'Methodist Home 1',
-          },
-          {
-            id: 'staff-nurse-mary',
-            name: 'Mary Nurse',
-            email: 'marynurse@methodist.care',
-            password: 'Marynurse@123',
-            role: 'nurse',
-            homeId: 'home-methodist-1',
-            homeName: 'Methodist Home 1',
-          },
-        ]);
-      });
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,12 +44,6 @@ export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
     }
   };
 
-  const handleQuickDemoLogin = (demoEmail: string, demoPass: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    setError(null);
-  };
-
   return (
     <div
       className={`min-h-screen flex flex-col justify-between p-6 sm:p-10 transition-colors duration-200 ${
@@ -103,9 +53,11 @@ export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
       {/* Top Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center text-white font-black text-xl shadow-lg">
-            EW
-          </div>
+          <img
+            src="/elderwatch-logo.png"
+            alt="ElderWatch Logo"
+            className="w-12 h-12 rounded-full shadow-lg"
+          />
           <div>
             <h1 className={`text-xl font-bold tracking-tight ${isNight ? 'text-white' : 'text-slate-900'}`}>
               ElderWatch
@@ -117,7 +69,6 @@ export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Prominent Global Theme Switcher */}
           <ThemeToggle />
 
           <button
@@ -143,13 +94,20 @@ export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
               : 'bg-white border-slate-200'
           }`}
         >
-          <div className="space-y-1">
-            <h2 className={`text-2xl font-bold ${isNight ? 'text-white' : 'text-slate-900'}`}>
-              Staff & Admin Portal
-            </h2>
-            <p className={`text-xs sm:text-sm ${isNight ? 'text-slate-300' : 'text-slate-600'}`}>
-              Sign in to manage care homes, assign staff, and monitor live resident check-in statuses.
-            </p>
+          <div className="flex flex-col items-center space-y-3">
+            <img
+              src="/elderwatch-logo.png"
+              alt="ElderWatch"
+              className="w-20 h-20 rounded-full shadow-xl"
+            />
+            <div className="text-center space-y-1">
+              <h2 className={`text-2xl font-bold ${isNight ? 'text-white' : 'text-slate-900'}`}>
+                Staff & Admin Portal
+              </h2>
+              <p className={`text-xs sm:text-sm ${isNight ? 'text-slate-300' : 'text-slate-600'}`}>
+                Sign in to manage care homes, assign staff, and monitor live resident check-in statuses.
+              </p>
+            </div>
           </div>
 
           {error && (
@@ -162,15 +120,16 @@ export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div>
               <label className={`block font-bold uppercase tracking-wider mb-1 ${isNight ? 'text-slate-300' : 'text-slate-700'}`}>
-                Email Address or Username
+                Email Address
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 <input
-                  type="text"
+                  type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@example.com"
                   className={`w-full pl-9 pr-3 py-2.5 rounded-xl border focus:outline-hidden text-sm ${
                     isNight
                       ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
@@ -191,6 +150,7 @@ export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
                   className={`w-full pl-9 pr-3 py-2.5 rounded-xl border focus:outline-hidden text-sm ${
                     isNight
                       ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
@@ -209,70 +169,6 @@ export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Quick Demo Credentials */}
-          <div className={`pt-4 border-t space-y-2.5 ${isNight ? 'border-slate-800' : 'border-slate-200'}`}>
-            <p className={`text-[11px] font-semibold flex items-center gap-1 ${isNight ? 'text-slate-400' : 'text-slate-600'}`}>
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Available Accounts (One-Click Quick Fill):</span>
-            </p>
-
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {demoAccounts.map((acc) => {
-                const isAdmin = acc.role === 'admin';
-                const isSelected = email === acc.email;
-                return (
-                  <button
-                    key={acc.id || acc.email}
-                    type="button"
-                    onClick={() => handleQuickDemoLogin(acc.email, acc.password || '')}
-                    className={`w-full p-3 rounded-xl border text-left transition cursor-pointer ${
-                      isSelected
-                        ? isNight
-                          ? 'bg-emerald-950/40 border-emerald-500/60 ring-1 ring-emerald-500/30'
-                          : 'bg-emerald-50 border-emerald-300 ring-1 ring-emerald-200'
-                        : isNight
-                        ? 'bg-slate-950/70 hover:bg-slate-800 border-slate-800'
-                        : 'bg-slate-50 hover:bg-slate-100 border-slate-200'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className={`font-bold flex items-center gap-1.5 ${isNight ? 'text-white' : 'text-slate-900'}`}>
-                        {acc.name}
-                        {isSelected && (
-                          <span className="text-[10px] text-emerald-500 font-normal">(Selected)</span>
-                        )}
-                      </span>
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${
-                          isAdmin
-                            ? 'text-purple-400 bg-purple-950/60 border border-purple-800/60'
-                            : 'text-emerald-400 bg-emerald-950/60 border border-emerald-800/60'
-                        }`}
-                      >
-                        {isAdmin ? 'Admin View' : `${acc.role} View`}
-                      </span>
-                    </div>
-                    <div className={`text-[11px] mt-1 flex items-center justify-between gap-1 ${isNight ? 'text-slate-400' : 'text-slate-600'}`}>
-                      <div className="flex items-center gap-1 truncate">
-                        {isAdmin ? (
-                          <Shield className="w-3 h-3 text-purple-400 shrink-0" />
-                        ) : (
-                          <Building className="w-3 h-3 text-emerald-500 shrink-0" />
-                        )}
-                        <span className="truncate">
-                          {isAdmin ? 'All Homes & Staff Overview' : acc.homeName}
-                        </span>
-                      </div>
-                      <span className="font-mono text-[10px] text-slate-400 shrink-0">
-                        {acc.email}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
       </div>
 
