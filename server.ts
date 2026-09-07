@@ -17,7 +17,7 @@ import {
   getDocsByField,
   getAllDocs,
   buildQuery,
-} from './src/lib/firebase-admin';
+} from './lib/firebase-admin';
 
 const app = express();
 const PORT = 3000;
