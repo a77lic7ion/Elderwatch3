@@ -702,14 +702,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       : 'bg-white border-slate-200'
                 }`}
               >
-                <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${isNight ? 'text-slate-300' : 'text-slate-500'}`}>
                   <span>Emergency (No)</span>
                   <AlertTriangle className={`w-4 h-4 ${stats.notOk > 0 ? 'text-rose-600 animate-bounce' : 'text-slate-400'}`} />
                 </div>
-                <div className={`text-3xl font-black mt-2 ${stats.notOk > 0 ? 'text-rose-700' : 'text-slate-700'}`}>
+                <div className={`text-3xl font-black mt-2 ${stats.notOk > 0 ? 'text-rose-700' : isNight ? 'text-white' : 'text-slate-700'}`}>
                   {stats.notOk}
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className={`text-[11px] mt-1 ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
                   {stats.notOk > 0 ? 'Urgent attention required' : 'No emergency alerts'}
                 </p>
               </button>
@@ -721,14 +721,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
                 }`}
               >
-                <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${isNight ? 'text-slate-300' : 'text-slate-500'}`}>
                   <span>Missed Cutoff</span>
                   <Clock className="w-4 h-4 text-amber-500" />
                 </div>
                 <div className="text-3xl font-black mt-2 text-amber-600">
                   {stats.noResponse}
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className={`text-[11px] mt-1 ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
                   No response by {home.cutoffTime} SAST
                 </p>
               </button>
@@ -740,14 +740,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
                 }`}
               >
-                <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${isNight ? 'text-slate-300' : 'text-slate-500'}`}>
                   <span>Awaiting Check-in</span>
                   <HelpCircle className="w-4 h-4 text-slate-400" />
                 </div>
                 <div className={`text-3xl font-black mt-2 ${isNight ? 'text-white' : 'text-slate-700'}`}>
                   {stats.awaiting}
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className={`text-[11px] mt-1 ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
                   Pending resident tap
                 </p>
               </button>
@@ -759,14 +759,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
                 }`}
               >
-                <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
+                <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${isNight ? 'text-slate-300' : 'text-slate-500'}`}>
                   <span>Checked In OK</span>
                   <CheckCircle className="w-4 h-4 text-emerald-600" />
                 </div>
                 <div className="text-3xl font-black mt-2 text-emerald-600">
                   {stats.ok}
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className={`text-[11px] mt-1 ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
                   Confirmed safe today
                 </p>
               </button>
@@ -797,7 +797,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
                     statusFilter === 'all'
                       ? 'bg-slate-900 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      : isNight
+                        ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
                   All ({residents.length})
@@ -807,7 +809,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
                     statusFilter === 'not_ok'
                       ? 'bg-rose-600 text-white'
-                      : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                      : isNight
+                        ? 'bg-rose-950/50 text-rose-300 hover:bg-rose-900/50'
+                        : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
                   }`}
                 >
                   Red "No" ({stats.notOk})
@@ -817,7 +821,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
                     statusFilter === 'no_response'
                       ? 'bg-amber-600 text-white'
-                      : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                      : isNight
+                        ? 'bg-amber-950/50 text-amber-300 hover:bg-amber-900/50'
+                        : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
                   }`}
                 >
                   Missed ({stats.noResponse})
@@ -827,7 +833,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
                     statusFilter === 'awaiting'
                       ? 'bg-slate-700 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      : isNight
+                        ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
                   Awaiting ({stats.awaiting})
@@ -837,7 +845,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
                     statusFilter === 'ok'
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      : isNight
+                        ? 'bg-emerald-950/50 text-emerald-300 hover:bg-emerald-900/50'
+                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                   }`}
                 >
                   Green "Yes" ({stats.ok})
@@ -850,11 +860,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="flex items-center justify-between px-1">
                 <h3 className={`font-bold text-sm flex items-center gap-2 ${isNight ? 'text-white' : 'text-slate-700'}`}>
                   <span>Resident Status Triage</span>
-                  <span className="text-xs font-normal text-slate-400">
+                  <span className={`text-xs font-normal ${isNight ? 'text-slate-400' : 'text-slate-400'}`}>
                     (Sorted worst-first: Red alerts at top, green safe at bottom)
                   </span>
                 </h3>
-                <span className="text-xs text-slate-400">
+                <span className={`text-xs ${isNight ? 'text-slate-400' : 'text-slate-400'}`}>
                   Showing {sortedAndFilteredResidents.length} residents
                 </span>
               </div>
@@ -864,11 +874,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
                 }`}>
                   <RefreshCw className="w-6 h-6 animate-spin text-emerald-600 mx-auto mb-2" />
-                  <p className="text-xs text-slate-500">Loading resident wellness records...</p>
+                  <p className={`text-xs ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>Loading resident wellness records...</p>
                 </div>
               ) : sortedAndFilteredResidents.length === 0 ? (
-                <div className={`p-12 rounded-2xl border text-center text-slate-500 text-xs ${
-                  isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+                <div className={`p-12 rounded-2xl border text-center text-xs ${
+                  isNight ? 'bg-slate-900 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
                 }`}>
                   No residents match the active filter.
                 </div>
@@ -962,22 +972,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                         {/* Resident Name */}
                         <div className="mt-3">
-                          <h4 className="font-bold text-base text-slate-900 leading-tight">
+                          <h4 className={`font-bold text-base leading-tight ${isNight ? 'text-white' : 'text-slate-900'}`}>
                             {resident.name}
                           </h4>
-                          <p className="text-xs text-slate-500 mt-0.5">
+                          <p className={`text-xs mt-0.5 ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
                             {resident.phone || 'No phone recorded'}
                           </p>
                         </div>
 
                         {/* Check-in time / Notes */}
-                        <div className="mt-3 pt-3 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-500">
+                        <div className={`mt-3 pt-3 border-t flex items-center justify-between text-[11px] ${isNight ? 'border-slate-700 text-slate-400' : 'border-slate-200/60 text-slate-500'}`}>
                           <span>
                             {resident.todayTimestamp
                               ? `At ${new Date(resident.todayTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} SAST`
                               : 'No check-in today'}
                           </span>
-                          <span className="text-emerald-700 font-semibold group-hover:underline">
+                          <span className={`font-semibold group-hover:underline ${isNight ? 'text-emerald-400' : 'text-emerald-700'}`}>
                             View Details →
                           </span>
                         </div>
@@ -998,13 +1008,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             {/* Header with Add Button */}
             <div className={`p-5 rounded-2xl border shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Resident Directory</h2>
-                <p className="text-xs text-slate-500">
+                <h2 className={`text-lg font-bold ${isNight ? 'text-white' : 'text-slate-900'}`}>Resident Directory</h2>
+                <p className={`text-xs ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
                   Manage resident profiles, emergency contacts, and device-linking status for {home.name}.
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <label className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer">
+                <label className={`px-3 py-2.5 rounded-xl border font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${isNight ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'}`}>
                   <Upload className="w-4 h-4" />
                   <span>CSV Import</span>
                   <input
@@ -1015,8 +1025,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                 </label>
                 <button
+                  onClick={() => {
+                    const csv = `Name,Room,Phone,Emergency Contact,Notes
+"Jane Smith","101","082-555-1234","John Smith (son) - 082-555-5678","Diabetic, needs morning medication"
+"Arthur Johnson","102","071-333-4444","Mary Johnson (wife) - 083-222-1111","Walker user, fall risk"
+"Grace Williams","103","","Peter Williams (son) - 084-888-9999","Hard of hearing, use visual cues"
+"David Brown","104","072-777-8888","Sarah Brown (daughter) - 081-666-3333","Needs assistance with meals"
+"Elsie Taylor","105","083-999-0000","James Taylor (son) - 082-111-2222","Night wanderer, check frequently"`;
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'elderwatch-resident-import-example.csv';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className={`px-3 py-2.5 rounded-xl border font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${isNight ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'}`}
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Example CSV</span>
+                </button>
+                <button
                   onClick={handleBatchLinkCodes}
-                  className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                  className={`px-3 py-2.5 rounded-xl border font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${isNight ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'}`}
                 >
                   <Link2 className="w-4 h-4" />
                   <span>Export Link Codes</span>
@@ -1037,8 +1068,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             {/* Residents Table */}
             <div className={`rounded-2xl border shadow-xs overflow-hidden ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-700">
-                  <thead className="bg-slate-100/80 uppercase text-[10px] font-bold text-slate-600 tracking-wider border-b border-slate-200">
+                <table className="w-full text-left text-xs">
+                  <thead className={`uppercase text-[10px] font-bold tracking-wider border-b ${isNight ? 'bg-slate-800 text-slate-400 border-slate-700' : 'bg-slate-100/80 text-slate-600 border-slate-200'}`}>
                     <tr>
                       <th className="py-3 px-4">Room</th>
                       <th className="py-3 px-4">Resident Name</th>
@@ -1048,23 +1079,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium">
+                  <tbody className={`divide-y font-medium ${isNight ? 'divide-slate-800' : 'divide-slate-100'}`}>
                     {residents.map((r) => (
-                      <tr key={r.id} className="hover:bg-slate-50/80 transition">
-                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
+                      <tr key={r.id} className={`transition ${isNight ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50/80'}`}>
+                        <td className={`py-3.5 px-4 font-mono font-bold ${isNight ? 'text-white' : 'text-slate-900'}`}>
                           {r.roomNumber}
                         </td>
-                        <td className="py-3.5 px-4 font-bold text-slate-900">
+                        <td className={`py-3.5 px-4 font-bold ${isNight ? 'text-white' : 'text-slate-900'}`}>
                           {r.name}
                           {r.emergencyContact && (
-                            <div className="text-[10px] text-slate-400 font-normal">EC: {r.emergencyContact}</div>
+                            <div className={`text-[10px] font-normal ${isNight ? 'text-slate-400' : 'text-slate-400'}`}>EC: {r.emergencyContact}</div>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 text-slate-600">
+                        <td className={`py-3.5 px-4 ${isNight ? 'text-slate-300' : 'text-slate-600'}`}>
                           {r.phone || '—'}
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                          <span className={`font-mono text-[11px] px-2 py-0.5 rounded ${isNight ? 'bg-slate-800 border border-slate-700 text-slate-300' : 'bg-slate-100 border border-slate-200'}`}>
                             {r.oneTimeLinkCode || (r.isDeviceLinked ? 'Paired' : '—')}
                           </span>
                         </td>
@@ -1082,14 +1113,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <td className="py-3.5 px-4 text-right space-x-1">
                           <button
                             onClick={() => setSelectedResidentForQR(r)}
-                            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+                            className={`p-1.5 rounded-lg border transition cursor-pointer ${isNight ? 'border-slate-700 hover:bg-slate-700 text-slate-400' : 'border-slate-200 hover:bg-slate-100 text-slate-600'}`}
                             title="Pair Device"
                           >
                             <Link2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleRegenerateLinkCode(r.id, r.roomNumber, r.name)}
-                            className="p-1.5 rounded-lg border border-slate-200 hover:bg-amber-50 text-amber-600 transition cursor-pointer"
+                            className={`p-1.5 rounded-lg border transition cursor-pointer ${isNight ? 'border-slate-700 hover:bg-amber-950/50 text-amber-400' : 'border-slate-200 hover:bg-amber-50 text-amber-600'}`}
                             title="Regenerate Link Code"
                           >
                             <RefreshCw className="w-3.5 h-3.5" />
@@ -1099,14 +1130,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               setEditingResident(r);
                               setIsAddEditModalOpen(true);
                             }}
-                            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+                            className={`p-1.5 rounded-lg border transition cursor-pointer ${isNight ? 'border-slate-700 hover:bg-slate-700 text-slate-400' : 'border-slate-200 hover:bg-slate-100 text-slate-600'}`}
                             title="Edit"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDeleteResident(r.id, r.name)}
-                            className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition cursor-pointer"
+                            className={`p-1.5 rounded-lg border transition cursor-pointer ${isNight ? 'border-rose-900 hover:bg-rose-950/50 text-rose-400' : 'border-rose-200 hover:bg-rose-50 text-rose-600'}`}
                             title="Delete"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1142,11 +1173,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className={`p-5 rounded-2xl border shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Onboarding Rollout Progress</p>
-                <h3 className="text-2xl font-black text-slate-900 mt-1">
+                <h3 className={`text-2xl font-black mt-1 ${isNight ? 'text-white' : 'text-slate-900'}`}>
                   {stats.linked} of {stats.total} phones paired ({Math.round((stats.linked / (stats.total || 1)) * 100)}%)
                 </h3>
               </div>
-              <div className="w-full sm:w-64 h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+              <div className={`w-full sm:w-64 h-3 rounded-full overflow-hidden ${isNight ? 'bg-slate-800 border border-slate-700' : 'bg-slate-100 border border-slate-200'}`}>
                 <div
                   className="h-full bg-emerald-600 transition-all duration-500"
                   style={{ width: `${(stats.linked / (stats.total || 1)) * 100}%` }}
@@ -1156,7 +1187,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
             {/* Residents Ready for Pairing */}
             <div className="space-y-3">
-              <h3 className="font-bold text-sm text-slate-800">
+              <h3 className={`font-bold text-sm ${isNight ? 'text-white' : 'text-slate-800'}`}>
                 Select a Resident to View / Generate Pairing Code
               </h3>
 
@@ -1172,8 +1203,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <span className="text-[11px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
                         ROOM {r.roomNumber}
                       </span>
-                      <h4 className="font-bold text-sm text-slate-900 mt-1">{r.name}</h4>
-                      <p className="text-[11px] text-slate-500">
+                      <h4 className={`font-bold text-sm mt-1 ${isNight ? 'text-white' : 'text-slate-900'}`}>{r.name}</h4>
+                      <p className={`text-[11px] ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
                         {r.isDeviceLinked ? 'Paired & Active' : 'Not yet paired'}
                       </p>
                     </div>
@@ -1200,7 +1231,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className={`p-6 rounded-3xl border shadow-xs ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
               <div className="flex items-center gap-2 mb-4">
                 <Settings className="w-5 h-5 text-emerald-600" />
-                <h3 className="text-lg font-bold text-slate-900">Facility Configuration</h3>
+                <h3 className={`text-lg font-bold ${isNight ? 'text-white' : 'text-slate-900'}`}>Facility Configuration</h3>
               </div>
 
               {settingsSuccessMsg && (
@@ -1212,42 +1243,42 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
               <form onSubmit={handleSaveSettings} className="space-y-4 max-w-xl text-xs">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label className={`block font-bold uppercase tracking-wider mb-1 ${isNight ? 'text-slate-300' : 'text-slate-700'}`}>
                     Village Name
                   </label>
                   <input
                     type="text"
                     value={homeNameInput}
                     onChange={(e) => setHomeNameInput(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900"
+                    className={`w-full p-2.5 rounded-xl border text-sm font-semibold ${isNight ? 'bg-slate-800 border-slate-700 text-white' : 'border-slate-300 text-slate-900'}`}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    <label className={`block font-bold uppercase tracking-wider mb-1 ${isNight ? 'text-slate-300' : 'text-slate-700'}`}>
                       Daily Check-in Cutoff Time (SAST)
                     </label>
                     <input
                       type="time"
                       value={cutoffTimeInput}
                       onChange={(e) => setCutoffTimeInput(e.target.value)}
-                      className="w-full p-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900"
+                      className={`w-full p-2.5 rounded-xl border text-sm font-semibold ${isNight ? 'bg-slate-800 border-slate-700 text-white' : 'border-slate-300 text-slate-900'}`}
                     />
-                    <p className="text-[11px] text-slate-400 mt-1">
+                    <p className={`text-[11px] mt-1 ${isNight ? 'text-slate-400' : 'text-slate-400'}`}>
                       Unanswered residents auto-marked "no_response" at this cutoff.
                     </p>
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    <label className={`block font-bold uppercase tracking-wider mb-1 ${isNight ? 'text-slate-300' : 'text-slate-700'}`}>
                       Timezone
                     </label>
                     <input
                       type="text"
                       disabled
                       value="Africa/Johannesburg (SAST, UTC+2)"
-                      className="w-full p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 text-xs font-medium"
+                      className={`w-full p-2.5 rounded-xl text-xs font-medium ${isNight ? 'bg-slate-800 border border-slate-700 text-slate-400' : 'bg-slate-100 border border-slate-200 text-slate-500'}`}
                     />
                   </div>
                 </div>
@@ -1267,14 +1298,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Clock className="w-5 h-5 text-emerald-600" />
-                  <h3 className="text-lg font-bold text-slate-900">Daily Cycle Scheduled Jobs</h3>
+                  <h3 className={`text-lg font-bold ${isNight ? 'text-white' : 'text-slate-900'}`}>Daily Cycle Scheduled Jobs</h3>
                 </div>
-                <span className="text-xs bg-slate-100 font-mono font-bold text-slate-600 px-3 py-1 rounded-full">
+                <span className={`text-xs font-mono font-bold px-3 py-1 rounded-full ${isNight ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
                   Automated Interval: Every 30s
                 </span>
               </div>
 
-              <p className="text-xs text-slate-600 leading-relaxed">
+              <p className={`text-xs leading-relaxed ${isNight ? 'text-slate-400' : 'text-slate-600'}`}>
                 Reset all residents to "awaiting" status for a new day. This clears today's check-ins.
               </p>
 
@@ -1289,15 +1320,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <button
                   onClick={handleMorningReset}
                   disabled={!!runningJob}
-                  className="p-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-left transition cursor-pointer"
+                  className={`p-4 rounded-2xl text-left transition cursor-pointer ${isNight ? 'bg-emerald-950/50 hover:bg-emerald-900/50 border border-emerald-800' : 'bg-emerald-50 hover:bg-emerald-100 border border-emerald-200'}`}
                 >
                   <span className="text-[11px] font-bold text-emerald-700 uppercase block mb-1">
                     Manual Reset
                   </span>
-                  <span className="font-bold text-slate-900 text-sm block">
+                  <span className={`font-bold text-sm block ${isNight ? 'text-white' : 'text-slate-900'}`}>
                     Morning Reset
                   </span>
-                  <span className="text-[11px] text-slate-500 block mt-1">
+                  <span className={`text-[11px] block mt-1 ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
                     Resets all residents to "awaiting" for a new day.
                   </span>
                 </button>
@@ -1306,21 +1337,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
             {/* Audit Logs Table */}
             <div className={`p-6 rounded-3xl border shadow-xs space-y-3 ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <h3 className={`text-base font-bold flex items-center gap-2 ${isNight ? 'text-white' : 'text-slate-900'}`}>
                 <FileText className="w-4 h-4 text-slate-500" />
                 <span>Recent Scheduled Job & Push Notification Logs</span>
               </h3>
 
-              <div className="border border-slate-200 rounded-2xl overflow-hidden divide-y divide-slate-100 text-xs">
+              <div className={`rounded-2xl overflow-hidden text-xs ${isNight ? 'bg-slate-800 border border-slate-700 divide-slate-700' : 'border border-slate-200 divide-slate-100'} divide-y`}>
                 {jobLogs.length === 0 ? (
-                  <p className="p-4 text-slate-400 text-center">No execution logs yet.</p>
+                  <p className={`p-4 text-center ${isNight ? 'text-slate-400' : 'text-slate-400'}`}>No execution logs yet.</p>
                 ) : (
                   jobLogs.slice(0, 8).map((log) => (
                     <div key={log.id} className="p-3.5 flex items-start justify-between gap-3">
                       <div>
-                        <span className="font-bold text-slate-800 block">{log.description}</span>
+                        <span className={`font-bold block ${isNight ? 'text-white' : 'text-slate-800'}`}>{log.description}</span>
                         {log.details && (
-                          <span className="text-slate-500 text-[11px] block mt-0.5">{log.details}</span>
+                          <span className={`text-[11px] block mt-0.5 ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>{log.details}</span>
                         )}
                       </div>
                       <span className="text-[11px] font-mono text-slate-400 shrink-0">
