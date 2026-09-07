@@ -8,6 +8,7 @@ import {
   Trash2,
   Clock,
   Shield,
+  Key,
   Smartphone,
   Phone,
   AlertCircle,
@@ -125,9 +126,13 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
 
   // Delete Home
   const handleDeleteHome = async (homeId: string, homeName: string) => {
-    if (!confirm(`Are you sure you want to delete "${homeName}"? This will remove all associated residents and staff.`)) return;
+    if (!confirm(`Are you sure you want to delete "${homeName}"? Staff and residents will become Unassigned.`)) return;
     try {
       await apiDeleteHome(homeId);
+      // Reset filter if it was set to the deleted home
+      if (selectedHomeFilter === homeId) {
+        setSelectedHomeFilter('all');
+      }
       showNotification(`Home "${homeName}" deleted.`);
       await fetchOverview();
     } catch (err: unknown) {
@@ -164,6 +169,32 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
       await fetchOverview();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Failed to reassign staff');
+    }
+  };
+
+  // Reset Staff Password
+  const handleResetPassword = async (staffId: string, staffName: string) => {
+    const newPassword = prompt(`Enter new password for ${staffName}:`);
+    if (!newPassword) return;
+    if (newPassword.length < 6) {
+      alert('Password must be at least 6 characters');
+      return;
+    }
+    try {
+      const res = await fetch('/api/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staffId, newPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification(`Password updated for "${staffName}".`);
+        await fetchOverview();
+      } else {
+        alert(data.error || 'Failed to reset password');
+      }
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to reset password');
     }
   };
 
@@ -788,17 +819,26 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
                           </td>
 
                           <td className="p-4 text-right">
-                            {s.email !== 'shaunwgordon@gmail.com' ? (
+                            <div className="flex items-center justify-end gap-1">
                               <button
-                                onClick={() => handleDeleteStaff(s.id, s.name)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
-                                title="Remove staff member"
+                                onClick={() => handleResetPassword(s.id, s.name)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 transition cursor-pointer"
+                                title="Reset password"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Key className="w-3.5 h-3.5" />
                               </button>
-                            ) : (
-                              <span className="text-[10px] text-purple-400 font-bold">Primary Admin</span>
-                            )}
+                              {s.email !== 'shaunwgordon@gmail.com' ? (
+                                <button
+                                  onClick={() => handleDeleteStaff(s.id, s.name)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
+                                  title="Remove staff member"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-purple-400 font-bold">Primary Admin</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );

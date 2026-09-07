@@ -744,7 +744,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <span>Awaiting Check-in</span>
                   <HelpCircle className="w-4 h-4 text-slate-400" />
                 </div>
-                <div className="text-3xl font-black mt-2 text-slate-700">
+                <div className={`text-3xl font-black mt-2 ${isNight ? 'text-white' : 'text-slate-700'}`}>
                   {stats.awaiting}
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
@@ -848,7 +848,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             {/* Live Triage Residents Grid (WORST-FIRST ORDER) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
-                <h3 className="font-bold text-sm text-slate-700 flex items-center gap-2">
+                <h3 className={`font-bold text-sm flex items-center gap-2 ${isNight ? 'text-white' : 'text-slate-700'}`}>
                   <span>Resident Status Triage</span>
                   <span className="text-xs font-normal text-slate-400">
                     (Sorted worst-first: Red alerts at top, green safe at bottom)
