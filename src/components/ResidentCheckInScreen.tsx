@@ -189,6 +189,76 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
     }
   }, []);
 
+  // Real-time listener for Firestore checkin updates (morning reset, staff override, etc.)
+  useEffect(() => {
+    if (!deviceBinding) return;
+
+    const setupListener = async () => {
+      try {
+        const { db } = await import('../lib/firebase');
+        const { doc, onSnapshot } = await import('firebase/firestore');
+
+        // Get today's date in SAST
+        const now = new Date();
+        const sastNow = new Date(now.getTime() + (2 * 60 * 60 * 1000));
+        const today = sastNow.toISOString().split('T')[0];
+        const docId = `${deviceBinding.homeId}_${deviceBinding.residentId}_${today}`;
+
+        console.log('[ElderWatch] Setting up real-time listener for:', docId);
+
+        const unsubscribe = onSnapshot(doc(db, 'checkins', docId), (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const status = data.status;
+            const timestamp = data.timestamp;
+
+            console.log('[ElderWatch] Real-time update received:', status);
+
+            // Update localStorage
+            localStorage.setItem(`elderwatch_checkin_${deviceBinding.residentId}_${today}`, JSON.stringify({ status, timestamp }));
+
+            // Update view based on Firestore status
+            if (status === 'awaiting') {
+              // Morning reset - go back to main screen
+              setView('morning');
+              setCheckInTime(null);
+              setHelpTime(null);
+            } else if (status === 'ok') {
+              setView('ok');
+              setCheckInTime(new Date(timestamp));
+            } else if (status === 'not_ok') {
+              setView('help');
+              setHelpTime(new Date(timestamp));
+            }
+          } else {
+            // Document deleted - go back to morning
+            console.log('[ElderWatch] Checkin document deleted, resetting to morning');
+            setView('morning');
+            setCheckInTime(null);
+            setHelpTime(null);
+          }
+        }, (error) => {
+          console.error('[ElderWatch] Real-time listener error:', error);
+        });
+
+        return unsubscribe;
+      } catch (e) {
+        console.error('[ElderWatch] Failed to setup listener:', e);
+        return () => {};
+      }
+    };
+
+    let unsubscribeFn: (() => void) | undefined;
+
+    setupListener().then((unsub) => {
+      unsubscribeFn = unsub;
+    });
+
+    return () => {
+      if (unsubscribeFn) unsubscribeFn();
+    };
+  }, [deviceBinding]);
+
   // Auto-bind from permanent URL
   useEffect(() => {
     if (!permanentResidentId) return;
