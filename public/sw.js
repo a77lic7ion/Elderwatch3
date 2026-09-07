@@ -1,4 +1,4 @@
-const CACHE_NAME = 'elderwatch-v3';
+const CACHE_NAME = 'elderwatch-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -110,4 +110,16 @@ self.addEventListener('notificationclick', (event) => {
       }
     })
   );
+});
+
+// Handle messages from clients
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SET_RESIDENT_URL') {
+    // Store the resident URL for PWA launch
+    const url = event.data.url;
+    if (url) {
+      // Use IndexedDB or just rely on the client to set localStorage
+      // The client-side code will handle this
+    }
+  }
 });

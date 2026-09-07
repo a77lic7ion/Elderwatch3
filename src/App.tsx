@@ -9,18 +9,26 @@ import { StaffUser, Home, DeviceBinding } from './types';
 import { auth, logout, onAuthChange } from './lib/firebase';
 
 export default function App() {
+  // Check if we're in PWA mode (standalone display)
+  const isPWA = typeof window !== 'undefined' && 
+    (window.matchMedia('(display-mode: standalone)').matches || 
+     (window.navigator as any).standalone === true);
+
   // Routes: 'admin' | 'checkin' | 'link'
   const [currentRoute, setCurrentRoute] = useState<'admin' | 'checkin' | 'link'>(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
       if (path.startsWith('/checkin')) return 'checkin';
       if (path.startsWith('/link')) return 'link';
+      
       // PWA launch: check if we have a saved resident check-in URL
       const savedResidentUrl = localStorage.getItem('ew_pwa_checkin_url');
-      if (savedResidentUrl && window.location.pathname === '/') {
-        // Restore the saved check-in URL
-        window.history.replaceState({}, '', savedResidentUrl);
-        return 'checkin';
+      if (savedResidentUrl) {
+        // In PWA mode, always restore the saved URL
+        if (isPWA || window.location.pathname === '/') {
+          window.history.replaceState({}, '', savedResidentUrl);
+          return 'checkin';
+        }
       }
     }
     return 'admin';
@@ -97,6 +105,22 @@ export default function App() {
 
     return () => unsubscribe();
   }, []);
+
+  // Handle PWA mode - ensure saved URL is restored
+  useEffect(() => {
+    if (isPWA) {
+      const savedUrl = localStorage.getItem('ew_pwa_checkin_url');
+      if (savedUrl && window.location.pathname === '/') {
+        console.log('[ElderWatch] PWA mode - restoring URL:', savedUrl);
+        window.history.replaceState({}, '', savedUrl);
+        const match = savedUrl.match(/^\/checkin\/(.+)$/);
+        if (match) {
+          setPermanentResidentId(match[1]);
+          setCurrentRoute('checkin');
+        }
+      }
+    }
+  }, [isPWA]);
 
   // Listen for browser URL back/forward
   useEffect(() => {

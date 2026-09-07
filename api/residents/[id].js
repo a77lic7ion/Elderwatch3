@@ -28,7 +28,8 @@ function getFirebaseAdmin() {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'DELETE') {
+  // Support PUT for editing and DELETE for removing
+  if (req.method !== 'DELETE' && req.method !== 'PUT') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -42,23 +43,42 @@ export default async function handler(req, res) {
     const adminApp = getFirebaseAdmin();
     const db = getFirestore(adminApp);
 
-    // Delete the resident document
-    await db.collection('residents').doc(id).delete();
+    // Handle PUT - Update resident
+    if (req.method === 'PUT') {
+      const updates = req.body;
+      
+      // Remove undefined fields
+      const cleanedUpdates = {};
+      Object.keys(updates).forEach(key => {
+        if (updates[key] !== undefined) {
+          cleanedUpdates[key] = updates[key];
+        }
+      });
 
-    // Also delete any checkins for this resident
-    const checkinsSnapshot = await db.collection('checkins')
-      .where('residentId', '==', id)
-      .get();
-    
-    const batch = db.batch();
-    checkinsSnapshot.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
-    await batch.commit();
+      await db.collection('residents').doc(id).update(cleanedUpdates);
+      return res.status(200).json({ success: true, message: 'Resident updated successfully' });
+    }
 
-    return res.status(200).json({ success: true, message: 'Resident deleted successfully' });
+    // Handle DELETE - Remove resident
+    if (req.method === 'DELETE') {
+      // Delete the resident document
+      await db.collection('residents').doc(id).delete();
+
+      // Also delete any checkins for this resident
+      const checkinsSnapshot = await db.collection('checkins')
+        .where('residentId', '==', id)
+        .get();
+      
+      const batch = db.batch();
+      checkinsSnapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+
+      return res.status(200).json({ success: true, message: 'Resident deleted successfully' });
+    }
   } catch (error) {
-    console.error('Error deleting resident:', error);
-    return res.status(500).json({ error: 'Failed to delete resident' });
+    console.error('Error:', error);
+    return res.status(500).json({ error: 'Failed to process request' });
   }
 }
