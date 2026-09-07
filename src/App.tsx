@@ -158,47 +158,49 @@ export default function App() {
       {/* Offline sync indicator */}
       <OfflineIndicator />
 
-      {/* Floating Environment & Global Theme Control Dock */}
-      <div className="fixed bottom-3 right-3 z-50 bg-[#17201B]/95 backdrop-blur-md border border-white/25 rounded-2xl p-1.5 shadow-2xl flex items-center gap-1.5 text-xs">
-        <span className="text-[10px] font-bold text-white/60 px-2 uppercase tracking-wider hidden sm:inline">
-          View:
-        </span>
-        <button
-          onClick={() => navigate('checkin')}
-          className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
-            currentRoute === 'checkin'
-              ? 'bg-[#157A4C] text-white shadow-sm'
-              : 'text-white/80 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          Resident Screen
-        </button>
-        <button
-          onClick={() => navigate('admin')}
-          className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
-            currentRoute === 'admin'
-              ? 'bg-[#157A4C] text-white shadow-sm'
-              : 'text-white/80 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          Staff & Admin
-        </button>
-        <button
-          onClick={() => navigate('link')}
-          className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
-            currentRoute === 'link'
-              ? 'bg-[#157A4C] text-white shadow-sm'
-              : 'text-white/80 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          Pair Phone
-        </button>
+      {/* Floating Environment & Global Theme Control Dock - HIDDEN on resident check-in screen */}
+      {currentRoute !== 'checkin' && !permanentResidentId && (
+        <div className="fixed bottom-3 right-3 z-50 bg-[#17201B]/95 backdrop-blur-md border border-white/25 rounded-2xl p-1.5 shadow-2xl flex items-center gap-1.5 text-xs">
+          <span className="text-[10px] font-bold text-white/60 px-2 uppercase tracking-wider hidden sm:inline">
+            View:
+          </span>
+          <button
+            onClick={() => navigate('checkin')}
+            className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+              currentRoute === 'checkin'
+                ? 'bg-[#157A4C] text-white shadow-sm'
+                : 'text-white/80 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            Resident Screen
+          </button>
+          <button
+            onClick={() => navigate('admin')}
+            className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+              currentRoute === 'admin'
+                ? 'bg-[#157A4C] text-white shadow-sm'
+                : 'text-white/80 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            Staff & Admin
+          </button>
+          <button
+            onClick={() => navigate('link')}
+            className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
+              currentRoute === 'link'
+                ? 'bg-[#157A4C] text-white shadow-sm'
+                : 'text-white/80 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            Pair Phone
+          </button>
 
-        <div className="h-4 w-px bg-white/20 mx-0.5" />
+          <div className="h-4 w-px bg-white/20 mx-0.5" />
 
-        {/* Unmissable Global Dark/Light Theme Switcher */}
-        <ThemeToggle />
-      </div>
+          {/* Unmissable Global Dark/Light Theme Switcher */}
+          <ThemeToggle />
+        </div>
+      )}
 
       {/* ROUTE 1: RESIDENT CHECK-IN SCREEN */}
       {currentRoute === 'checkin' && (

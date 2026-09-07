@@ -36,22 +36,22 @@ const T = {
     hello: (h: number) => (h < 12 ? 'Good morning,' : h < 17 ? 'Good afternoon,' : 'Good evening,'),
     where: (r: ResidentProfile) => `${r.room}, ${r.wing}`,
     okLabel: "I'm OK",
-    okSub: "Tap once. The sisters will know you're up.",
+    okSub: "Tap once. The sisters will know.",
     helpLabel: 'I need help',
-    helpSub: 'A sister will come to your room.',
+    helpSub: 'A sister will come to you.',
     okTitle: (name: string) => `Thank you, ${name}.`,
     okBody: "The sisters know you're up. Have a lovely day.",
     okTime: (t: string) => `Checked in at ${t}`,
-    undo: 'Tapped by mistake? Undo',
+    undo: 'Undo',
     helpTitle: 'Help is on its way.',
-    helpBody: (sister: string) => `Sister ${sister} has been told. Please stay where you are.`,
+    helpBody: (sister: string) => `Sister ${sister} has been told.`,
     helpTime: (t: string) => `Sent at ${t}`,
     cancel: "I'm fine after all",
     call: (sister: string) => `Call Sister ${sister}`,
-    callSub: 'On duty this morning',
-    late: `It's after ${CUTOFF_TIME}. Please tap I'm OK, or a sister will pop in to check on you.`,
-    linkedTitle: (name: string) => `This phone is now yours, ${name}.`,
-    linkedBody: "Every morning, open it and tap the green button. That's all.",
+    callSub: 'On duty',
+    late: `It's after ${CUTOFF_TIME}. Please tap I'm OK.`,
+    linkedTitle: (name: string) => `Welcome, ${name}.`,
+    linkedBody: 'Tap the green button every morning.',
     go: 'Continue',
     langTitle: 'Choose your language',
     langSub: 'Kies jou taal',
@@ -61,22 +61,22 @@ const T = {
     hello: (h: number) => (h < 12 ? 'Goeie môre,' : h < 17 ? 'Goeie middag,' : 'Goeienaand,'),
     where: (r: ResidentProfile) => `${r.room.replace('Room', 'Kamer')}, ${r.wing}`,
     okLabel: 'Ek is reg',
-    okSub: 'Tik een keer. Die susters sal weet jy is op.',
+    okSub: 'Tik een keer. Die susters sal weet.',
     helpLabel: 'Ek het hulp nodig',
-    helpSub: "'n Suster sal na jou kamer kom.",
+    helpSub: "'n Suster sal kom.",
     okTitle: (name: string) => `Dankie, ${name}.`,
     okBody: 'Die susters weet jy is op. Geniet jou dag.',
     okTime: (t: string) => `Ingeteken om ${t}`,
-    undo: 'Per ongeluk getik? Herstel',
+    undo: 'Herstel',
     helpTitle: 'Hulp is oppad.',
-    helpBody: (sister: string) => `Suster ${sister} is in kennis gestel. Bly asseblief waar jy is.`,
+    helpBody: (sister: string) => `Suster ${sister} is in kennis gestel.`,
     helpTime: (t: string) => `Gestuur om ${t}`,
     cancel: 'Ek is tog reg',
     call: (sister: string) => `Bel Suster ${sister}`,
-    callSub: 'Vanoggend aan diens',
-    late: `Dit is na ${CUTOFF_TIME}. Tik asseblief Ek is reg, anders kom 'n suster kyk hoe dit gaan.`,
-    linkedTitle: (name: string) => `Hierdie foon is nou joune, ${name}.`,
-    linkedBody: 'Maak dit elke oggend oop en tik die groen knoppie. Dis al.',
+    callSub: 'Aan diens',
+    late: `Dit is na ${CUTOFF_TIME}. Tik Ek is reg.`,
+    linkedTitle: (name: string) => `Welkom, ${name}.`,
+    linkedBody: 'Tik elke oggend die groen knoppie.',
     go: 'Gaan voort',
     langTitle: 'Kies jou taal',
     langSub: 'Choose your language',
@@ -341,17 +341,42 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
   // Language selection screen
   if (view === 'lang_select') {
     return (
-      <div className="w-full h-screen h-[100dvh] flex flex-col items-center justify-center p-8" style={{ background: '#FAF7F2', fontFamily: '"Atkinson Hyperlegible", sans-serif' }}>
-        <div className="w-full max-w-sm space-y-8 text-center">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-slate-900">Choose your language</h1>
-            <p className="text-lg text-slate-600">Kies jou taal</p>
+      <div style={{ 
+        width: '100vw', height: '100vh', height: '100dvh',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '24px', fontFamily: '"Atkinson Hyperlegible", sans-serif',
+        background: '#1A221E', color: '#F7FAFC'
+      }}>
+        <div style={{ width: '100%', maxWidth: '320px', display: 'flex', flexDirection: 'column', gap: '32px', textAlign: 'center' }}>
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#157A4C', display: 'grid', placeItems: 'center' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '28px', height: '28px' }}>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+            <span style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.02em' }}>ElderWatch</span>
           </div>
-          <div className="space-y-3">
-            <button onClick={() => handleLangSelect('en')} className="w-full py-5 rounded-2xl bg-slate-900 text-white text-2xl font-bold shadow-lg hover:bg-slate-800 transition cursor-pointer">
+          
+          <div>
+            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 700 }}>Choose your language</h1>
+            <p style={{ margin: '8px 0 0', fontSize: '18px', opacity: 0.7 }}>Kies jou taal</p>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <button onClick={() => handleLangSelect('en')} style={{ 
+              width: '100%', padding: '20px', borderRadius: '16px',
+              background: '#157A4C', color: 'white', border: 'none',
+              fontSize: '22px', fontWeight: 700, cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(21,122,76,0.4)'
+            }}>
               English
             </button>
-            <button onClick={() => handleLangSelect('af')} className="w-full py-5 rounded-2xl bg-white border-2 border-slate-200 text-slate-900 text-2xl font-bold shadow-sm hover:bg-slate-50 transition cursor-pointer">
+            <button onClick={() => handleLangSelect('af')} style={{ 
+              width: '100%', padding: '20px', borderRadius: '16px',
+              background: 'transparent', color: 'white', border: '2px solid rgba(255,255,255,0.3)',
+              fontSize: '22px', fontWeight: 700, cursor: 'pointer'
+            }}>
               Afrikaans
             </button>
           </div>
@@ -360,121 +385,223 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
     );
   }
 
+  // Main check-in screen
   return (
-    <div className="w-full h-screen h-[100dvh] overflow-hidden select-none" style={{ background: '#FAF7F2', fontFamily: '"Atkinson Hyperlegible", sans-serif' }}>
-      <div className="app-inner" style={{ fontSize: 'calc(20px * var(--scale, 1))', lineHeight: 1.35, position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', padding: 'calc(58px * var(--scale, 1)) calc(22px * var(--scale, 1)) calc(20px * var(--scale, 1))', gap: 'calc(12px * var(--scale, 1))', overflowY: 'auto', overflowX: 'hidden', boxSizing: 'border-box' }}>
-
-        {/* Language switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 'calc(44px * var(--scale, 1))', position: 'relative', zIndex: 2 }}>
-          <span style={{ display: 'inline-flex', color: '#157A4C' }}>
-            <svg viewBox="0 0 512 512" fill="none" style={{ width: 'calc(34px * var(--scale, 1))', height: 'calc(34px * var(--scale, 1))' }}>
-              <path d="M256 36L48 214C37 223.4 43.6 242 58 242H88V434C88 456.09 105.91 474 128 474H384C406.09 474 424 456.09 424 434V242H454C468.4 242 475 223.4 464 214L256 36Z" fill="currentColor" />
-              <path d="M256 405C256 405 120 324 120 236C120 188 158 152 204 152C232 152 248 166 256 177C264 166 280 152 308 152C354 152 392 188 392 236C392 324 256 405 256 405Z" fill="#FAF7F2" />
-              <path d="M214 274L244 306L304 240" stroke="currentColor" strokeWidth="26" strokeLinecap="round" strokeLinejoin="round" />
+    <div style={{ 
+      width: '100vw', height: '100vh', height: '100dvh',
+      display: 'flex', flexDirection: 'column',
+      fontFamily: '"Atkinson Hyperlegible", sans-serif',
+      background: '#1A221E', color: '#F7FAFC',
+      overflow: 'hidden', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      zIndex: 9999
+    }}>
+      {/* Top bar - minimal */}
+      <div style={{ 
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '12px 20px', flexShrink: 0
+      }}>
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#157A4C', display: 'grid', placeItems: 'center' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
             </svg>
-          </span>
-          <div style={{ display: 'inline-flex', borderRadius: '999px', padding: '3px', background: '#E8E5DE' }}>
-            <button onClick={() => { setLang('en'); localStorage.setItem('ew_lang', 'en'); }} style={{ border: 0, background: lang === 'en' ? '#1A221E' : 'transparent', color: lang === 'en' ? '#FAF7F2' : '#4A5568', borderRadius: '999px', padding: 'calc(6px * var(--scale, 1)) calc(14px * var(--scale, 1))', fontSize: 'calc(19px * var(--scale, 1))', fontWeight: 700, cursor: 'pointer', minHeight: 'calc(40px * var(--scale, 1))' }}>English</button>
-            <button onClick={() => { setLang('af'); localStorage.setItem('ew_lang', 'af'); }} style={{ border: 0, background: lang === 'af' ? '#1A221E' : 'transparent', color: lang === 'af' ? '#FAF7F2' : '#4A5568', borderRadius: '999px', padding: 'calc(6px * var(--scale, 1)) calc(14px * var(--scale, 1))', fontSize: 'calc(19px * var(--scale, 1))', fontWeight: 700, cursor: 'pointer', minHeight: 'calc(40px * var(--scale, 1))' }}>Afrikaans</button>
           </div>
+          <span style={{ fontSize: '16px', fontWeight: 700 }}>ElderWatch</span>
         </div>
-
-        {/* Date */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(9px * var(--scale, 1))', fontSize: 'calc(21px * var(--scale, 1))', color: '#718096', marginTop: 'calc(-4px * var(--scale, 1))', position: 'relative', zIndex: 2 }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" style={{ width: 'calc(24px * var(--scale, 1))', height: 'calc(24px * var(--scale, 1))', color: '#ECC94B', flexShrink: 0 }}>
-            <circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-          </svg>
-          <span style={{ fontWeight: 600 }}>{dateText}</span>
+        
+        {/* Language toggle */}
+        <div style={{ display: 'inline-flex', borderRadius: '8px', padding: '2px', background: 'rgba(255,255,255,0.1)' }}>
+          <button onClick={() => { setLang('en'); localStorage.setItem('ew_lang', 'en'); }} style={{ 
+            border: 0, borderRadius: '6px', padding: '6px 12px',
+            background: lang === 'en' ? '#157A4C' : 'transparent',
+            color: lang === 'en' ? 'white' : 'rgba(255,255,255,0.6)',
+            fontSize: '14px', fontWeight: 700, cursor: 'pointer'
+          }}>EN</button>
+          <button onClick={() => { setLang('af'); localStorage.setItem('ew_lang', 'af'); }} style={{ 
+            border: 0, borderRadius: '6px', padding: '6px 12px',
+            background: lang === 'af' ? '#157A4C' : 'transparent',
+            color: lang === 'af' ? 'white' : 'rgba(255,255,255,0.6)',
+            fontSize: '14px', fontWeight: 700, cursor: 'pointer'
+          }}>AF</button>
         </div>
+      </div>
 
+      {/* Main content - takes all available space */}
+      <div style={{ 
+        flex: 1, display: 'flex', flexDirection: 'column',
+        padding: '0 20px 20px', overflow: 'hidden'
+      }}>
         {/* Linked view */}
         {view === 'linked' && (
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 'calc(18px * var(--scale, 1))', flex: '1 1 auto', position: 'relative', zIndex: 2 }}>
-            <div style={{ width: 'calc(96px * var(--scale, 1))', height: 'calc(96px * var(--scale, 1))', borderRadius: '50%', background: '#E6FFFA', color: '#157A4C', display: 'grid', placeItems: 'center' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 'calc(56px * var(--scale, 1))', height: 'calc(56px * var(--scale, 1))' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '24px', textAlign: 'center' }}>
+            <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#157A4C', display: 'grid', placeItems: 'center' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '48px', height: '48px' }}>
                 <rect x="6" y="2" width="12" height="20" rx="2.5" /><path d="M9 18h6" /><path d="M9.5 10.5l2 2 3.5-4" />
               </svg>
             </div>
-            <h2 style={{ margin: 0, fontSize: 'calc(36px * var(--scale, 1))', lineHeight: 1.1, fontWeight: 700 }}>{t.linkedTitle(residentProfile.name)}</h2>
-            <p style={{ margin: 0, fontSize: 'calc(22px * var(--scale, 1))', color: '#718096' }}>{t.linkedBody}</p>
-            <button onClick={() => setView('morning')} style={{ marginTop: 'calc(8px * var(--scale, 1))', width: '100%', minHeight: 'calc(84px * var(--scale, 1))', border: 0, borderRadius: '26px', background: '#157A4C', color: '#fff', fontSize: 'calc(28px * var(--scale, 1))', fontWeight: 700, cursor: 'pointer', boxShadow: '0 18px 30px -16px rgba(21,122,76,0.4)' }}>{t.go}</button>
+            <div>
+              <h1 style={{ margin: 0, fontSize: '32px', fontWeight: 700 }}>{t.linkedTitle(residentProfile.name)}</h1>
+              <p style={{ margin: '12px 0 0', fontSize: '18px', opacity: 0.7 }}>{t.linkedBody}</p>
+            </div>
+            <button onClick={() => setView('morning')} style={{ 
+              width: '100%', maxWidth: '280px', padding: '20px', borderRadius: '16px',
+              background: '#157A4C', color: 'white', border: 'none',
+              fontSize: '20px', fontWeight: 700, cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(21,122,76,0.4)'
+            }}>{t.go}</button>
           </div>
         )}
 
         {/* Main screens */}
         {view !== 'linked' && view !== 'lang_select' && (
-          <>
-            <div style={{ position: 'relative', zIndex: 2 }}>
-              <h1 style={{ margin: 0, fontSize: 'calc(40px * var(--scale, 1))', lineHeight: 1.06, fontWeight: 700 }}>
-                <span>{t.hello(now.getHours())}</span>{' '}
-                <span style={{ display: 'block' }}>{residentProfile.name}</span>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {/* Greeting - compact */}
+            <div style={{ marginBottom: '16px' }}>
+              <h1 style={{ 
+                margin: 0, fontSize: '28px', lineHeight: 1.1, fontWeight: 700 
+              }}>
+                {t.hello(now.getHours())} {residentProfile.name}
               </h1>
-              <p style={{ margin: 'calc(8px * var(--scale, 1)) 0 0', fontSize: 'calc(22px * var(--scale, 1))', color: '#718096' }}>{t.where(residentProfile)}</p>
+              <p style={{ margin: '6px 0 0', fontSize: '16px', opacity: 0.6 }}>{t.where(residentProfile)}</p>
             </div>
 
+            {/* Late warning */}
             {isLate && view === 'morning' && (
-              <div role="status" style={{ display: 'flex', gap: 'calc(12px * var(--scale, 1))', alignItems: 'flex-start', background: '#FEFCBF', borderLeft: '8px solid #ECC94B', borderRadius: '14px', padding: 'calc(14px * var(--scale, 1)) calc(16px * var(--scale, 1))', fontSize: 'calc(20px * var(--scale, 1))', position: 'relative', zIndex: 2 }}>
-                <span>{t.late}</span>
+              <div style={{ 
+                padding: '12px 16px', borderRadius: '12px',
+                background: 'rgba(236,201,75,0.2)', border: '2px solid #ECC94B',
+                fontSize: '14px', marginBottom: '12px', color: '#ECC94B'
+              }}>
+                {t.late}
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(16px * var(--scale, 1))', flex: '1 0 auto', position: 'relative', zIndex: 2 }}>
+            {/* Buttons - take up most of the screen */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', minHeight: 0 }}>
               {view === 'morning' && (
-                <button onClick={handleOkClick} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 'calc(6px * var(--scale, 1))', width: '100%', border: 0, borderRadius: '30px', cursor: 'pointer', padding: 'calc(18px * var(--scale, 1)) calc(20px * var(--scale, 1))', background: '#157A4C', color: '#fff', minHeight: 'calc(176px * var(--scale, 1))', flex: '3 1 0', boxShadow: '0 18px 30px -16px rgba(21,122,76,0.4)' }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: 'calc(66px * var(--scale, 1))', height: 'calc(66px * var(--scale, 1))' }}><circle cx="12" cy="12" r="10" /><path d="M7.5 12.5l3 3 6-7" /></svg>
-                  <span style={{ fontSize: 'calc(44px * var(--scale, 1))', fontWeight: 700 }}>{t.okLabel}</span>
-                  <span style={{ fontSize: 'calc(20px * var(--scale, 1))', opacity: 0.94 }}>{t.okSub}</span>
-                </button>
+                <>
+                  <button onClick={handleOkClick} style={{ 
+                    flex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    border: 0, borderRadius: '20px', cursor: 'pointer',
+                    background: '#157A4C', color: 'white',
+                    boxShadow: '0 4px 20px rgba(21,122,76,0.4)',
+                    minHeight: '120px'
+                  }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '56px', height: '56px' }}>
+                      <circle cx="12" cy="12" r="10" /><path d="M7.5 12.5l3 3 6-7" />
+                    </svg>
+                    <span style={{ fontSize: '36px', fontWeight: 700 }}>{t.okLabel}</span>
+                    <span style={{ fontSize: '16px', opacity: 0.9 }}>{t.okSub}</span>
+                  </button>
+                  <button onClick={handleHelpClick} style={{ 
+                    flex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                    border: 0, borderRadius: '20px', cursor: 'pointer',
+                    background: '#C53030', color: 'white',
+                    boxShadow: '0 4px 20px rgba(197,48,48,0.4)',
+                    minHeight: '100px'
+                  }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ width: '44px', height: '44px' }}>
+                      <path d="M7 11V5.5a1.5 1.5 0 0 1 3 0V11" /><path d="M10 10V4.5a1.5 1.5 0 0 1 3 0V10" />
+                      <path d="M13 10.5V5.5a1.5 1.5 0 0 1 3 0v6" /><path d="M16 12.5V8a1.5 1.5 0 0 1 3 0v6.5A6.5 6.5 0 0 1 12.5 21H11a5 5 0 0 1-4.2-2.3L4 14.5a1.6 1.6 0 0 1 2.6-1.9L7 13.5" />
+                    </svg>
+                    <span style={{ fontSize: '32px', fontWeight: 700 }}>{t.helpLabel}</span>
+                    <span style={{ fontSize: '14px', opacity: 0.9 }}>{t.helpSub}</span>
+                  </button>
+                </>
               )}
 
               {view === 'ok' && (
-                <div role="status" style={{ display: 'flex', flexDirection: 'column', gap: 'calc(10px * var(--scale, 1))', borderRadius: '30px', padding: 'calc(22px * var(--scale, 1))', flex: '3 1 0', minHeight: 'calc(176px * var(--scale, 1))', background: '#E6FFFA', color: '#157A4C', border: '2px solid #B2DFDB' }}>
-                  <h2 style={{ margin: 0, fontSize: 'calc(30px * var(--scale, 1))', lineHeight: 1.1, fontWeight: 700 }}>{t.okTitle(residentProfile.name)}</h2>
-                  <p style={{ margin: 0, fontSize: 'calc(21px * var(--scale, 1))' }}>{t.okBody}</p>
-                  <p style={{ margin: 0, fontSize: 'calc(20px * var(--scale, 1))', opacity: 0.85 }}>{t.okTime(formatHHMM(checkInTime || now))}</p>
-                  <button onClick={handleUndo} style={{ marginTop: 'auto', alignSelf: 'flex-start', background: 'transparent', border: '2px solid currentColor', borderRadius: '999px', padding: 'calc(10px * var(--scale, 1)) calc(18px * var(--scale, 1))', fontSize: 'calc(20px * var(--scale, 1))', fontWeight: 700, cursor: 'pointer', color: 'inherit' }}>{t.undo}</button>
+                <div style={{ 
+                  flex: 1, display: 'flex', flexDirection: 'column', gap: '12px',
+                  borderRadius: '20px', padding: '20px',
+                  background: 'rgba(21,122,76,0.15)', border: '2px solid #157A4C'
+                }}>
+                  <h2 style={{ margin: 0, fontSize: '28px', lineHeight: 1.1, fontWeight: 700, color: '#157A4C' }}>{t.okTitle(residentProfile.name)}</h2>
+                  <p style={{ margin: 0, fontSize: '18px', opacity: 0.9 }}>{t.okBody}</p>
+                  <p style={{ margin: 0, fontSize: '16px', opacity: 0.7 }}>{t.okTime(formatHHMM(checkInTime || now))}</p>
+                  <button onClick={handleUndo} style={{ 
+                    marginTop: 'auto', alignSelf: 'flex-start',
+                    background: 'transparent', border: '2px solid rgba(255,255,255,0.3)',
+                    borderRadius: '999px', padding: '10px 20px',
+                    fontSize: '16px', fontWeight: 700, cursor: 'pointer', color: 'white'
+                  }}>{t.undo}</button>
                 </div>
               )}
 
-              {(view === 'morning' || view === 'ok') && (
-                <button onClick={handleHelpClick} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 'calc(6px * var(--scale, 1))', width: '100%', border: 0, borderRadius: '30px', cursor: 'pointer', padding: 'calc(18px * var(--scale, 1)) calc(20px * var(--scale, 1))', background: '#C53030', color: '#fff', minHeight: view === 'ok' ? 'calc(118px * var(--scale, 1))' : 'calc(122px * var(--scale, 1))', flex: view === 'ok' ? '1.15 1 0' : '2 1 0', boxShadow: '0 18px 30px -16px rgba(197,48,48,0.4)' }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ width: 'calc(50px * var(--scale, 1))', height: 'calc(50px * var(--scale, 1))' }}>
-                    <path d="M7 11V5.5a1.5 1.5 0 0 1 3 0V11" /><path d="M10 10V4.5a1.5 1.5 0 0 1 3 0V10" /><path d="M13 10.5V5.5a1.5 1.5 0 0 1 3 0v6" /><path d="M16 12.5V8a1.5 1.5 0 0 1 3 0v6.5A6.5 6.5 0 0 1 12.5 21H11a5 5 0 0 1-4.2-2.3L4 14.5a1.6 1.6 0 0 1 2.6-1.9L7 13.5" />
-                  </svg>
-                  <span style={{ fontSize: 'calc(44px * var(--scale, 1))', fontWeight: 700 }}>{t.helpLabel}</span>
-                  {view === 'morning' && <span style={{ fontSize: 'calc(20px * var(--scale, 1))', opacity: 0.94 }}>{t.helpSub}</span>}
+              {view === 'ok' && (
+                <button onClick={handleHelpClick} style={{ 
+                  flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                  border: 0, borderRadius: '20px', cursor: 'pointer',
+                  background: '#C53030', color: 'white',
+                  boxShadow: '0 4px 20px rgba(197,48,48,0.4)',
+                  padding: '20px', minHeight: '80px'
+                }}>
+                  <span style={{ fontSize: '24px', fontWeight: 700 }}>{t.helpLabel}</span>
                 </button>
               )}
 
               {view === 'help' && (
-                <div role="alert" style={{ display: 'flex', flexDirection: 'column', gap: 'calc(10px * var(--scale, 1))', borderRadius: '30px', padding: 'calc(22px * var(--scale, 1))', flex: '1 1 0', minHeight: 'calc(176px * var(--scale, 1))', background: '#FED7D7', color: '#C53030', border: '2px solid #FEB2B2' }}>
-                  <h2 style={{ margin: 0, fontSize: 'calc(30px * var(--scale, 1))', lineHeight: 1.1, fontWeight: 700 }}>{t.helpTitle}</h2>
-                  <p style={{ margin: 0, fontSize: 'calc(21px * var(--scale, 1))' }}>{t.helpBody(residentProfile.sister)}</p>
-                  <p style={{ margin: 0, fontSize: 'calc(20px * var(--scale, 1))', opacity: 0.85 }}>{t.helpTime(formatHHMM(helpTime || now))}</p>
-                  <button onClick={handleUndo} style={{ marginTop: 'auto', alignSelf: 'flex-start', background: 'transparent', border: '2px solid currentColor', borderRadius: '999px', padding: 'calc(10px * var(--scale, 1)) calc(18px * var(--scale, 1))', fontSize: 'calc(20px * var(--scale, 1))', fontWeight: 700, cursor: 'pointer', color: 'inherit' }}>{t.cancel}</button>
+                <div style={{ 
+                  flex: 1, display: 'flex', flexDirection: 'column', gap: '12px',
+                  borderRadius: '20px', padding: '20px',
+                  background: 'rgba(197,48,48,0.15)', border: '2px solid #C53030'
+                }}>
+                  <h2 style={{ margin: 0, fontSize: '28px', lineHeight: 1.1, fontWeight: 700, color: '#C53030' }}>{t.helpTitle}</h2>
+                  <p style={{ margin: 0, fontSize: '18px', opacity: 0.9 }}>{t.helpBody(residentProfile.sister)}</p>
+                  <p style={{ margin: 0, fontSize: '16px', opacity: 0.7 }}>{t.helpTime(formatHHMM(helpTime || now))}</p>
+                  <button onClick={handleUndo} style={{ 
+                    marginTop: 'auto', alignSelf: 'flex-start',
+                    background: 'transparent', border: '2px solid rgba(255,255,255,0.3)',
+                    borderRadius: '999px', padding: '10px 20px',
+                    fontSize: '16px', fontWeight: 700, cursor: 'pointer', color: 'white'
+                  }}>{t.cancel}</button>
                 </div>
               )}
             </div>
 
-            {/* Call Sister */}
+            {/* Call Sister - only if phone number exists */}
             {residentProfile.phone && (
-              <a href={`tel:${residentProfile.phone}`} style={{ display: 'flex', alignItems: 'center', gap: 'calc(14px * var(--scale, 1))', width: '100%', minHeight: 'calc(70px * var(--scale, 1))', padding: 'calc(8px * var(--scale, 1)) calc(14px * var(--scale, 1))', borderRadius: '22px', border: '3px solid #1A221E', background: view === 'help' ? '#1A221E' : 'transparent', color: view === 'help' ? '#FAF7F2' : '#1A221E', fontSize: 'calc(22px * var(--scale, 1))', fontWeight: 700, cursor: 'pointer', textDecoration: 'none', position: 'relative', zIndex: 2 }}>
-                <span style={{ width: 'calc(46px * var(--scale, 1))', height: 'calc(46px * var(--scale, 1))', borderRadius: '50%', background: '#E6FFFA', color: '#157A4C', display: 'grid', placeItems: 'center', fontSize: 'calc(18px * var(--scale, 1))', fontWeight: 700, flexShrink: 0 }}>{residentProfile.sisterInitials}</span>
-                <span style={{ flex: 1 }}><span>{t.call(residentProfile.sister)}</span><small style={{ display: 'block', fontSize: 'calc(20px * var(--scale, 1))', color: view === 'help' ? '#FAF7F2' : '#718096' }}>{t.callSub}</small></span>
+              <a href={`tel:${residentProfile.phone}`} style={{ 
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '14px 16px', borderRadius: '16px',
+                border: '2px solid rgba(255,255,255,0.2)',
+                background: view === 'help' ? 'rgba(197,48,48,0.2)' : 'transparent',
+                color: 'white', textDecoration: 'none',
+                fontSize: '18px', fontWeight: 700,
+                marginTop: '12px', flexShrink: 0
+              }}>
+                <span style={{ 
+                  width: '40px', height: '40px', borderRadius: '50%',
+                  background: '#157A4C', display: 'grid', placeItems: 'center',
+                  fontSize: '14px', fontWeight: 700, flexShrink: 0
+                }}>{residentProfile.sisterInitials}</span>
+                <span style={{ flex: 1 }}>
+                  <span>{t.call(residentProfile.sister)}</span>
+                  <small style={{ display: 'block', fontSize: '14px', opacity: 0.7, fontWeight: 400 }}>{t.callSub}</small>
+                </span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '24px', height: '24px', flexShrink: 0 }}>
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                </svg>
               </a>
             )}
-          </>
-        )}
-
-        {/* Flash overlay */}
-        {flashKind && (
-          <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', pointerEvents: 'none', background: flashKind === 'ok' ? '#157A4C' : '#C53030', color: '#FFF', zIndex: 10 }}>
-            <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '190px', height: '190px' }}>
-              <path d={flashKind === 'ok' ? 'M10 25l10 10 18-22' : 'M24 10v18M24 36v2'} />
-            </svg>
           </div>
         )}
       </div>
+
+      {/* Flash overlay */}
+      {flashKind && (
+        <div style={{ 
+          position: 'fixed', inset: 0, display: 'grid', placeItems: 'center',
+          pointerEvents: 'none', zIndex: 99999,
+          background: flashKind === 'ok' ? '#157A4C' : '#C53030',
+          color: '#FFF'
+        }}>
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '190px', height: '190px' }}>
+            <path d={flashKind === 'ok' ? 'M10 25l10 10 18-22' : 'M24 10v18M24 36v2'} />
+          </svg>
+        </div>
+      )}
     </div>
   );
 };
