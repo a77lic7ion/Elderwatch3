@@ -147,17 +147,27 @@ export async function deleteStaff(staffId: string) {
 }
 
 // Add Resident
-export async function addResident(homeId: string, name: string, roomNumber: string, phone: string, emergencyContact: string, notes: string, unitNumber?: string) {
+export async function addResident(
+  homeId: string,
+  name: string,
+  roomNumber: string,
+  phone: string,
+  emergencyContact: string,
+  notes: string,
+  unitNumber?: string,
+  emergencyContactName?: string,
+  emergencyContactRelation?: string,
+  emergencyContactNumber?: string
+) {
   const id = `res-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
   const linkCode = `LINK-${roomNumber.replace(/[^a-zA-Z0-9]/g, '')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-  
+
   const newResident: Record<string, any> = {
     id,
     homeId,
     name: name.trim(),
     roomNumber: roomNumber.trim(),
     phone: (phone || '').trim(),
-    emergencyContact: (emergencyContact || '').trim(),
     notes: (notes || '').trim(),
     isDeviceLinked: false,
     linkedAt: null,
@@ -166,9 +176,12 @@ export async function addResident(homeId: string, name: string, roomNumber: stri
     createdAt: new Date().toISOString(),
   };
 
-  if (unitNumber) {
-    newResident.unitNumber = unitNumber.trim();
-  }
+  if (unitNumber) newResident.unitNumber = unitNumber.trim();
+  if (emergencyContactName) newResident.emergencyContactName = emergencyContactName.trim();
+  if (emergencyContactRelation) newResident.emergencyContactRelation = emergencyContactRelation.trim();
+  if (emergencyContactNumber) newResident.emergencyContactNumber = emergencyContactNumber.trim();
+  // Legacy field for backwards compat
+  if (emergencyContact) newResident.emergencyContact = emergencyContact.trim();
   
   try {
     await setDoc(doc(db, 'residents', id), newResident);
@@ -308,7 +321,17 @@ export async function updateResident(residentId: string, updates: Partial<{ name
 }
 
 // Batch import residents from CSV data
-export async function batchImportResidents(homeId: string, residents: Array<{ name: string; roomNumber: string; phone?: string; emergencyContact?: string; notes?: string }>) {
+export async function batchImportResidents(homeId: string, residents: Array<{
+  name: string;
+  roomNumber: string;
+  phone?: string;
+  unitNumber?: string;
+  emergencyContactName?: string;
+  emergencyContactRelation?: string;
+  emergencyContactNumber?: string;
+  emergencyContact?: string;
+  notes?: string;
+}>) {
   const today = getTodaySAST();
   const results = [];
 
@@ -316,13 +339,12 @@ export async function batchImportResidents(homeId: string, residents: Array<{ na
     const id = `res-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const linkCode = `LINK-${r.roomNumber.replace(/[^a-zA-Z0-9]/g, '')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-    const newResident = {
+    const newResident: Record<string, any> = {
       id,
       homeId,
       name: r.name.trim(),
       roomNumber: r.roomNumber.trim(),
       phone: (r.phone || '').trim(),
-      emergencyContact: (r.emergencyContact || '').trim(),
       notes: (r.notes || '').trim(),
       isDeviceLinked: false,
       linkedAt: null,
@@ -330,6 +352,13 @@ export async function batchImportResidents(homeId: string, residents: Array<{ na
       pushToken: null,
       createdAt: new Date().toISOString(),
     };
+
+    if (r.unitNumber) newResident.unitNumber = r.unitNumber.trim();
+    if (r.emergencyContactName) newResident.emergencyContactName = r.emergencyContactName.trim();
+    if (r.emergencyContactRelation) newResident.emergencyContactRelation = r.emergencyContactRelation.trim();
+    if (r.emergencyContactNumber) newResident.emergencyContactNumber = r.emergencyContactNumber.trim();
+    // Legacy field for backwards compat
+    if (r.emergencyContact) newResident.emergencyContact = r.emergencyContact.trim();
 
     await setDoc(doc(db, 'residents', id), newResident);
 

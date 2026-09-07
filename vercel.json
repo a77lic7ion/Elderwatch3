@@ -8,5 +8,8 @@
     { "source": "/checkin", "destination": "/index.html" },
     { "source": "/checkin/:residentId", "destination": "/index.html" },
     { "source": "/admin", "destination": "/index.html" }
+  ],
+  "crons": [
+    { "path": "/api/cron/daily-reset", "schedule": "0 22 * * *" }
   ]
 }

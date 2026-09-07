@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Phone, DoorClosed, AlertCircle } from 'lucide-react';
+import { X, User, Phone, DoorClosed, AlertCircle, Heart, Users } from 'lucide-react';
 import { Resident } from '../types';
 
 interface AddEditResidentModalProps {
@@ -17,7 +17,9 @@ export const AddEditResidentModal: React.FC<AddEditResidentModalProps> = ({
   const [phone, setPhone] = useState(resident?.phone || '');
   const [roomNumber, setRoomNumber] = useState(resident?.roomNumber || '');
   const [unitNumber, setUnitNumber] = useState(resident?.unitNumber || '');
-  const [emergencyContact, setEmergencyContact] = useState(resident?.emergencyContact || '');
+  const [emergencyContactName, setEmergencyContactName] = useState(resident?.emergencyContactName || '');
+  const [emergencyContactRelation, setEmergencyContactRelation] = useState(resident?.emergencyContactRelation || '');
+  const [emergencyContactNumber, setEmergencyContactNumber] = useState(resident?.emergencyContactNumber || '');
   const [notes, setNotes] = useState(resident?.notes || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +39,9 @@ export const AddEditResidentModal: React.FC<AddEditResidentModalProps> = ({
         phone: phone.trim(),
         roomNumber: roomNumber.trim(),
         unitNumber: unitNumber.trim() || undefined,
-        emergencyContact: emergencyContact.trim(),
+        emergencyContactName: emergencyContactName.trim() || undefined,
+        emergencyContactRelation: emergencyContactRelation.trim() || undefined,
+        emergencyContactNumber: emergencyContactNumber.trim() || undefined,
         notes: notes.trim(),
       });
       onClose();
@@ -51,9 +55,9 @@ export const AddEditResidentModal: React.FC<AddEditResidentModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-      <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+      <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+        <div className="bg-slate-900 text-white p-5 flex items-center justify-between sticky top-0 z-10">
           <h3 className="font-bold text-lg">
             {resident ? 'Edit Resident Profile' : 'Add New Resident'}
           </h3>
@@ -139,21 +143,43 @@ export const AddEditResidentModal: React.FC<AddEditResidentModalProps> = ({
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+          {/* Emergency Contact - Split into Name / Relation / Number */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <Heart className="w-3.5 h-3.5 text-rose-500" />
               Emergency Contact (Family / Sponsor)
             </label>
-            <input
-              type="text"
-              placeholder="e.g. Son: Mark (+27 83 222 1199)"
-              value={emergencyContact}
-              onChange={(e) => setEmergencyContact(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 text-slate-900 text-sm"
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="Name (e.g. Mark)"
+                value={emergencyContactName}
+                onChange={(e) => setEmergencyContactName(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 text-slate-900 text-sm"
+              />
+              <input
+                type="text"
+                placeholder="Relation (e.g. Son)"
+                value={emergencyContactRelation}
+                onChange={(e) => setEmergencyContactRelation(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 text-slate-900 text-sm"
+              />
+            </div>
+            <div className="relative">
+              <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              <input
+                type="tel"
+                placeholder="Phone (+27 83 222 1199)"
+                value={emergencyContactNumber}
+                onChange={(e) => setEmergencyContactNumber(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 text-slate-900 text-sm"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              <Users className="w-3.5 h-3.5 text-slate-500" />
               Care Notes / Mobility Requirements
             </label>
             <textarea

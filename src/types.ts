@@ -27,7 +27,9 @@ export interface Resident {
   linkedAt: string | null;
   oneTimeLinkCode: string | null;
   pushToken?: string | null;
-  emergencyContact?: string;
+  emergencyContactName?: string;
+  emergencyContactRelation?: string;
+  emergencyContactNumber?: string;
   notes?: string;
   createdAt: string;
 }

@@ -332,24 +332,45 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
 
     const header = lines[0].toLowerCase().split(',').map(h => h.trim());
-    const nameIdx = header.findIndex(h => h.includes('name'));
-    const roomIdx = header.findIndex(h => h.includes('room'));
-    const phoneIdx = header.findIndex(h => h.includes('phone'));
-    const ecIdx = header.findIndex(h => h.includes('emergency') || h.includes('contact'));
-    const notesIdx = header.findIndex(h => h.includes('note'));
+    const nameIdx = header.findIndex(h => h === 'name' || h.includes('full name') || h.includes('resident name'));
+    const roomIdx = header.findIndex(h => h === 'room' || h.includes('room number') || h.includes('room #'));
+    const unitIdx = header.findIndex(h => h === 'unit' || h.includes('unit number') || h.includes('unit #'));
+    const phoneIdx = header.findIndex(h => h === 'phone' || h.includes('phone number'));
+    const ecNameIdx = header.findIndex(h => h.includes('contact name') || h.includes('family name') || h.includes('ec name'));
+    const ecRelIdx = header.findIndex(h => h.includes('relation') || h.includes('relationship'));
+    const ecNumIdx = header.findIndex(h => h.includes('contact number') || h.includes('contact phone') || h.includes('ec number') || h.includes('ec phone'));
+    const notesIdx = header.findIndex(h => h.includes('note') || h.includes('care'));
 
     if (nameIdx === -1 || roomIdx === -1) {
-      alert('CSV must have "name" and "room" columns.');
+      alert('CSV must have "Name" and "Room" columns. Download the Example CSV for the correct format.');
       return;
     }
 
     const residents = lines.slice(1).map(line => {
-      const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+      // Parse CSV line - handle quoted fields with commas
+      const cols: string[] = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+          cols.push(cur.trim());
+          cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      cols.push(cur.trim());
       return {
         name: cols[nameIdx] || '',
         roomNumber: cols[roomIdx] || '',
+        unitNumber: unitIdx >= 0 ? cols[unitIdx] || '' : '',
         phone: phoneIdx >= 0 ? cols[phoneIdx] || '' : '',
-        emergencyContact: ecIdx >= 0 ? cols[ecIdx] || '' : '',
+        emergencyContactName: ecNameIdx >= 0 ? cols[ecNameIdx] || '' : '',
+        emergencyContactRelation: ecRelIdx >= 0 ? cols[ecRelIdx] || '' : '',
+        emergencyContactNumber: ecNumIdx >= 0 ? cols[ecNumIdx] || '' : '',
         notes: notesIdx >= 0 ? cols[notesIdx] || '' : '',
       };
     }).filter(r => r.name && r.roomNumber);
@@ -376,18 +397,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Batch Link Code Export
   const handleBatchLinkCodes = () => {
     const origin = window.location.origin;
-    const lines = ['Room,Name,Link Code,Pairing URL,Check-in URL'];
+    // Header now exposes a single Auto-Pair URL (residents open it on the phone
+    // to link + pair in one step), plus the permanent check-in URL for those
+    // who are already paired. We keep the raw Link Code column for reference.
+    const lines = ['Room,Name,Unit,Link Code,Auto-Pair URL,Check-in URL'];
     residents.forEach(r => {
-      const pairingUrl = `${origin}/link?code=${encodeURIComponent(r.oneTimeLinkCode || '')}`;
+      const autoPairUrl = r.oneTimeLinkCode
+        ? `${origin}/checkin/${r.id}?pair=${encodeURIComponent(r.oneTimeLinkCode)}`
+        : 'N/A';
       const checkinUrl = `${origin}/checkin/${r.id}`;
-      lines.push(`"${r.roomNumber}","${r.name}","${r.oneTimeLinkCode || 'N/A'}","${pairingUrl}","${checkinUrl}"`);
+      const unit = r.unitNumber || '';
+      lines.push(`"${r.roomNumber}","${r.name}","${unit}","${r.oneTimeLinkCode || 'N/A'}","${autoPairUrl}","${checkinUrl}"`);
     });
 
     const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `elderwatch-link-codes-${home.name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `elderwatch-pairing-qr-${home.name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -1243,12 +1270,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </label>
                 <button
                   onClick={() => {
-                    const csv = `Name,Room,Phone,Emergency Contact,Notes
-"Jane Smith","101","082-555-1234","John Smith (son) - 082-555-5678","Diabetic, needs morning medication"
-"Arthur Johnson","102","071-333-4444","Mary Johnson (wife) - 083-222-1111","Walker user, fall risk"
-"Grace Williams","103","","Peter Williams (son) - 084-888-9999","Hard of hearing, use visual cues"
-"David Brown","104","072-777-8888","Sarah Brown (daughter) - 081-666-3333","Needs assistance with meals"
-"Elsie Taylor","105","083-999-0000","James Taylor (son) - 082-111-2222","Night wanderer, check frequently"`;
+                    const csv = `Name,Room,Unit,Phone,Contact Name,Relation,Contact Number,Notes
+"Jane Smith","101","A1","082-555-1234","John Smith","Son","082-555-5678","Diabetic, needs morning medication"
+"Arthur Johnson","102","A1","071-333-4444","Mary Johnson","Wife","083-222-1111","Walker user, fall risk"
+"Grace Williams","103","A2","","Peter Williams","Son","084-888-9999","Hard of hearing, use visual cues"
+"David Brown","104","A2","072-777-8888","Sarah Brown","Daughter","081-666-3333","Needs assistance with meals"
+"Elsie Taylor","105","A3","083-999-0000","James Taylor","Son","082-111-2222","Night wanderer, check frequently"`;
                     const blob = new Blob([csv], { type: 'text/csv' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
