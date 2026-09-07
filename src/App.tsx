@@ -15,6 +15,13 @@ export default function App() {
       const path = window.location.pathname;
       if (path.startsWith('/checkin')) return 'checkin';
       if (path.startsWith('/link')) return 'link';
+      // PWA launch: check if we have a saved resident check-in URL
+      const savedResidentUrl = localStorage.getItem('ew_pwa_checkin_url');
+      if (savedResidentUrl && window.location.pathname === '/') {
+        // Restore the saved check-in URL
+        window.history.replaceState({}, '', savedResidentUrl);
+        return 'checkin';
+      }
     }
     return 'admin';
   });
@@ -33,7 +40,11 @@ export default function App() {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
       const match = path.match(/^\/checkin\/(.+)$/);
-      if (match) return match[1];
+      if (match) {
+        // Save this URL for PWA home screen restore
+        localStorage.setItem('ew_pwa_checkin_url', path);
+        return match[1];
+      }
     }
     return null;
   });
@@ -91,6 +102,8 @@ export default function App() {
         setCurrentRoute('checkin');
         const match = path.match(/^\/checkin\/(.+)$/);
         setPermanentResidentId(match ? match[1] : null);
+        // Save for PWA restore
+        localStorage.setItem('ew_pwa_checkin_url', path);
       } else {
         setCurrentRoute('admin');
       }

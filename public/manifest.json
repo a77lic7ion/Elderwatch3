@@ -1,15 +1,21 @@
 {
-  "id": "/",
-  "name": "ElderWatch",
+  "id": "/checkin",
+  "name": "ElderWatch Check-in",
   "short_name": "ElderWatch",
-  "description": "Daily wellness check-in system for frailcare and old-age homes",
-  "start_url": "/",
+  "description": "Daily wellness check-in for residents",
+  "start_url": "/checkin",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#059669",
-  "theme_color": "#059669",
+  "background_color": "#1A221E",
+  "theme_color": "#1A221E",
   "icons": [
+    {
+      "src": "/elderwatch-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
     {
       "src": "/pwa-192x192.png",
       "sizes": "192x192",
@@ -21,12 +27,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
-    },
-    {
-      "src": "/pwa-maskable-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
     }
   ]
 }

@@ -696,8 +696,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 onClick={() => setStatusFilter(statusFilter === 'not_ok' ? 'all' : 'not_ok')}
                 className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
                   stats.notOk > 0
-                    ? 'bg-rose-50 border-rose-300 ring-2 ring-rose-500/20 shadow-sm'
-                    : 'bg-white border-slate-200 shadow-xs'
+                    ? isNight
+                      ? 'bg-rose-950/50 border-rose-800 ring-2 ring-rose-600/20 shadow-sm'
+                      : 'bg-rose-50 border-rose-300 ring-2 ring-rose-500/20 shadow-sm'
+                    : isNight
+                      ? 'bg-slate-900 border-slate-700'
+                      : 'bg-white border-slate-200'
                 }`}
               >
                 <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
@@ -715,7 +719,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               {/* No Response / Missed Cutoff Card (Amber) */}
               <button
                 onClick={() => setStatusFilter(statusFilter === 'no_response' ? 'all' : 'no_response')}
-                className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs text-left hover:border-amber-400 transition cursor-pointer"
+                className={`p-4 rounded-2xl border shadow-xs text-left hover:border-amber-400 transition cursor-pointer ${
+                  isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+                }`}
               >
                 <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
                   <span>Missed Cutoff</span>
@@ -732,7 +738,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               {/* Awaiting Checkin Card (Grey) */}
               <button
                 onClick={() => setStatusFilter(statusFilter === 'awaiting' ? 'all' : 'awaiting')}
-                className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs text-left hover:border-slate-400 transition cursor-pointer"
+                className={`p-4 rounded-2xl border shadow-xs text-left hover:border-slate-400 transition cursor-pointer ${
+                  isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+                }`}
               >
                 <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
                   <span>Awaiting Check-in</span>
@@ -749,7 +757,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               {/* Checked in OK Card (Green) */}
               <button
                 onClick={() => setStatusFilter(statusFilter === 'ok' ? 'all' : 'ok')}
-                className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs text-left hover:border-emerald-400 transition cursor-pointer"
+                className={`p-4 rounded-2xl border shadow-xs text-left hover:border-emerald-400 transition cursor-pointer ${
+                  isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+                }`}
               >
                 <div className="flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-wider">
                   <span>Checked In OK</span>
@@ -765,7 +775,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
 
             {/* Filter & Search Bar */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className={`p-4 rounded-2xl border shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 ${
+              isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+            }`}>
               {/* Search */}
               <div className="relative flex-1">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
@@ -774,7 +786,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   placeholder="Search resident by name or room (e.g. 104, Arthur)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-xs focus:outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                  className={`w-full pl-10 pr-4 py-2 rounded-xl border text-xs focus:outline-hidden focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 ${
+                    isNight ? 'bg-slate-800 border-slate-700 text-white' : 'border-slate-200'
+                  }`}
                 />
               </div>
 
@@ -848,12 +862,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
 
               {loading ? (
-                <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
+                <div className={`p-12 rounded-2xl border text-center ${
+                  isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+                }`}>
                   <RefreshCw className="w-6 h-6 animate-spin text-emerald-600 mx-auto mb-2" />
                   <p className="text-xs text-slate-500">Loading resident wellness records...</p>
                 </div>
               ) : sortedAndFilteredResidents.length === 0 ? (
-                <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-500 text-xs">
+                <div className={`p-12 rounded-2xl border text-center text-slate-500 text-xs ${
+                  isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+                }`}>
                   No residents match the active filter.
                 </div>
               ) : (
@@ -870,12 +888,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         onClick={() => setSelectedResidentForDetail(resident)}
                         className={`rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer relative group ${
                           isNotOk
-                            ? 'bg-rose-50/90 border-rose-300 ring-2 ring-rose-500 shadow-md hover:bg-rose-50'
+                            ? isNight
+                              ? 'bg-rose-950/50 border-rose-800 ring-2 ring-rose-600 shadow-md hover:bg-rose-950/70'
+                              : 'bg-rose-50/90 border-rose-300 ring-2 ring-rose-500 shadow-md hover:bg-rose-50'
                             : isNoResponse
-                            ? 'bg-amber-50/70 border-amber-300 hover:border-amber-400 shadow-xs'
+                            ? isNight
+                              ? 'bg-amber-950/50 border-amber-800 hover:border-amber-700 shadow-xs'
+                              : 'bg-amber-50/70 border-amber-300 hover:border-amber-400 shadow-xs'
                             : isAwaiting
-                            ? 'bg-white border-slate-200 hover:border-slate-300 shadow-xs'
-                            : 'bg-emerald-50/40 border-emerald-200 hover:border-emerald-300 shadow-xs'
+                            ? isNight
+                              ? 'bg-slate-900 border-slate-700 hover:border-slate-600 shadow-xs'
+                              : 'bg-white border-slate-200 hover:border-slate-300 shadow-xs'
+                            : isNight
+                              ? 'bg-emerald-950/50 border-emerald-800 hover:border-emerald-700 shadow-xs'
+                              : 'bg-emerald-50/40 border-emerald-200 hover:border-emerald-300 shadow-xs'
                         }`}
                       >
                         {/* Top card bar */}
@@ -972,7 +998,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         {activeTab === 'residents' && (
           <div className="space-y-4">
             {/* Header with Add Button */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className={`p-5 rounded-2xl border shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
               <div>
                 <h2 className="text-lg font-bold text-slate-900">Resident Directory</h2>
                 <p className="text-xs text-slate-500">
@@ -1011,7 +1037,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
 
             {/* Residents Table */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className={`rounded-2xl border shadow-xs overflow-hidden ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-slate-700">
                   <thead className="bg-slate-100/80 uppercase text-[10px] font-bold text-slate-600 tracking-wider border-b border-slate-200">
@@ -1115,7 +1141,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
 
             {/* Onboarding Progress Card */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className={`p-5 rounded-2xl border shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Onboarding Rollout Progress</p>
                 <h3 className="text-2xl font-black text-slate-900 mt-1">
@@ -1140,7 +1166,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 {residents.map((r) => (
                   <div
                     key={r.id}
-                    className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between gap-3 hover:border-emerald-500 transition"
+                    className={`p-4 rounded-2xl border shadow-xs flex items-center justify-between gap-3 hover:border-emerald-500 transition ${
+                      isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+                    }`}
                   >
                     <div>
                       <span className="text-[11px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
@@ -1171,7 +1199,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         {activeTab === 'settings' && (
           <div className="space-y-6">
             {/* Multi-Tenant Facility Details Form */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
+            <div className={`p-6 rounded-3xl border shadow-xs ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
               <div className="flex items-center gap-2 mb-4">
                 <Settings className="w-5 h-5 text-emerald-600" />
                 <h3 className="text-lg font-bold text-slate-900">Facility Configuration</h3>
@@ -1237,7 +1265,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
 
             {/* Daily Cycle Test Engine (Interactive Triggers) */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+            <div className={`p-6 rounded-3xl border shadow-xs space-y-4 ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Clock className="w-5 h-5 text-emerald-600" />
@@ -1279,7 +1307,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
 
             {/* Audit Logs Table */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
+            <div className={`p-6 rounded-3xl border shadow-xs space-y-3 ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-slate-500" />
                 <span>Recent Scheduled Job & Push Notification Logs</span>
