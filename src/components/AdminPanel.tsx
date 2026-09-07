@@ -33,7 +33,7 @@ import { playEmergencyAlertSound } from '../utils/audioAlert';
 import { AddEditResidentModal } from './AddEditResidentModal';
 import { ResidentDetailModal } from './ResidentDetailModal';
 import { DeviceLinkQRModal } from './DeviceLinkQRModal';
-import { BackendEvaluationModal } from './BackendEvaluationModal';
+
 import { PWAInstallButton } from './PWAInstallButton';
 import { AdminOverviewView } from './AdminOverviewView';
 import { ThemeToggle, useAppTheme } from './ThemeToggle';
@@ -76,7 +76,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [selectedResidentForQR, setSelectedResidentForQR] = useState<ResidentTodayView | null>(null);
   const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
   const [editingResident, setEditingResident] = useState<ResidentTodayView | null>(null);
-  const [isEvaluationModalOpen, setIsEvaluationModalOpen] = useState(false);
+
 
   // Settings state
   const [homeNameInput, setHomeNameInput] = useState(initialHome.name);
@@ -256,25 +256,45 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  // Trigger manual jobs
-  const handleTriggerJob = async (endpoint: string, jobName: string) => {
-    setRunningJob(jobName);
+  // Trigger morning reset - resets all residents to 'awaiting'
+  const handleMorningReset = async () => {
+    setRunningJob('Morning Reset');
     setJobFeedbackMsg('');
 
     try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+      const { db } = await import('../lib/firebase');
+      const { collection, query, where, getDocs, writeBatch } = await import('firebase/firestore');
+
+      // Get today's date in SAST
+      const now = new Date();
+      const sastDate = new Date(now.getTime() + (2 * 60 * 60 * 1000));
+      const today = sastDate.toISOString().split('T')[0];
+
+      // Get all check-ins for today for this home
+      const checkinsQuery = query(
+        collection(db, 'checkins'),
+        where('homeId', '==', home.id),
+        where('date', '==', today)
+      );
+      const snapshot = await getDocs(checkinsQuery);
+
+      // Reset all to awaiting
+      const batch = writeBatch(db);
+      snapshot.forEach((doc) => {
+        batch.update(doc.ref, { status: 'awaiting', updatedBy: 'morning_reset', timestamp: now.toISOString() });
       });
 
-      const data = await res.json();
-      if (res.ok) {
-        setJobFeedbackMsg(data.message || `${jobName} executed.`);
-        fetchResidents();
-        fetchLogs();
+      if (snapshot.size > 0) {
+        await batch.commit();
+        setJobFeedbackMsg(`Morning Reset complete: ${snapshot.size} residents reset to awaiting.`);
+      } else {
+        setJobFeedbackMsg('Morning Reset: No check-ins found for today.');
       }
-    } catch {
-      setJobFeedbackMsg(`Failed to trigger ${jobName}`);
+
+      fetchResidents();
+    } catch (err) {
+      console.error('Morning reset failed:', err);
+      setJobFeedbackMsg('Failed to trigger Morning Reset');
     } finally {
       setRunningJob(null);
       setTimeout(() => setJobFeedbackMsg(''), 5000);
@@ -506,19 +526,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             >
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
               <span className="hidden md:inline">{soundEnabled ? 'Audio On' : 'Muted'}</span>
-            </button>
-
-            {/* Architecture Justification Modal Button */}
-            <button
-              onClick={() => setIsEvaluationModalOpen(true)}
-              className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
-                isNight
-                  ? 'border-slate-800 bg-slate-800/80 text-slate-300 hover:bg-slate-700'
-                  : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5 text-blue-500" />
-              <span className="hidden sm:inline">Backend & Cost ADR</span>
             </button>
 
             {/* PWA Install Button */}
@@ -1242,7 +1249,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
 
               <p className="text-xs text-slate-600 leading-relaxed">
-                The ElderWatch engine checks the system clock and fires automated cron routines at <strong>07:00 SAST</strong> (Morning Reset), <strong>08:45 SAST</strong> (Reminder Push), and <strong>{home.cutoffTime} SAST</strong> (Cutoff Sweep). Use the manual trigger buttons below to test transitions immediately:
+                Reset all residents to "awaiting" status for a new day. This clears today's check-ins.
               </p>
 
               {jobFeedbackMsg && (
@@ -1252,72 +1259,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-                {/* 07:00 Morning Reset */}
+              <div className="pt-2">
                 <button
-                  onClick={() => handleTriggerJob('/api/jobs/trigger-morning-reset', 'Morning Reset')}
+                  onClick={handleMorningReset}
                   disabled={!!runningJob}
-                  className="p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition cursor-pointer"
+                  className="p-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-left transition cursor-pointer"
                 >
                   <span className="text-[11px] font-bold text-emerald-700 uppercase block mb-1">
-                    07:00 SAST
+                    Manual Reset
                   </span>
                   <span className="font-bold text-slate-900 text-sm block">
                     Morning Reset
                   </span>
                   <span className="text-[11px] text-slate-500 block mt-1">
-                    Resets all residents to "awaiting" & sends morning check-in prompt.
-                  </span>
-                </button>
-
-                {/* 08:45 Reminder */}
-                <button
-                  onClick={() => handleTriggerJob('/api/jobs/trigger-reminder-push', 'Reminder Push')}
-                  disabled={!!runningJob}
-                  className="p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition cursor-pointer"
-                >
-                  <span className="text-[11px] font-bold text-blue-700 uppercase block mb-1">
-                    08:45 SAST
-                  </span>
-                  <span className="font-bold text-slate-900 text-sm block">
-                    Dispatch Reminders
-                  </span>
-                  <span className="text-[11px] text-slate-500 block mt-1">
-                    Sends push notification nudging anyone still "awaiting".
-                  </span>
-                </button>
-
-                {/* Cutoff Sweep */}
-                <button
-                  onClick={() => handleTriggerJob('/api/jobs/trigger-cutoff-sweep', 'Cutoff Sweep')}
-                  disabled={!!runningJob}
-                  className="p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition cursor-pointer"
-                >
-                  <span className="text-[11px] font-bold text-amber-700 uppercase block mb-1">
-                    {home.cutoffTime} SAST Cutoff
-                  </span>
-                  <span className="font-bold text-slate-900 text-sm block">
-                    Run Cutoff Sweep
-                  </span>
-                  <span className="text-[11px] text-slate-500 block mt-1">
-                    Transitions all remaining "awaiting" residents to "no_response".
-                  </span>
-                </button>
-
-                {/* Emergency Alert Simulation */}
-                <button
-                  onClick={() => handleTriggerJob('/api/jobs/simulate-emergency', 'Emergency Alert')}
-                  disabled={!!runningJob}
-                  className="p-4 rounded-2xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-left transition cursor-pointer"
-                >
-                  <span className="text-[11px] font-bold text-rose-700 uppercase block mb-1">
-                    Immediate Trigger
-                  </span>
-                  <span className="font-bold text-rose-950 text-sm block">
-                    Simulate "No" Tap
-                  </span>
-                  <span className="text-[11px] text-rose-800 block mt-1">
-                    Simulates a resident pressing RED "I need help" to test alarms.
+                    Resets all residents to "awaiting" for a new day.
                   </span>
                 </button>
               </div>
@@ -1390,10 +1345,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           onClose={() => setIsAddEditModalOpen(false)}
           onSave={handleSaveResident}
         />
-      )}
-
-      {isEvaluationModalOpen && (
-        <BackendEvaluationModal onClose={() => setIsEvaluationModalOpen(false)} />
       )}
     </div>
   );

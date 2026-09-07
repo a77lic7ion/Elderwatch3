@@ -287,14 +287,15 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
 
     const resId = deviceBinding?.residentId || 'demo';
     const hId = deviceBinding?.homeId || 'demo';
-    const todayStr = now.toISOString().split('T')[0];
 
     try {
       setSubmitting(true);
-      localStorage.setItem(`elderwatch_checkin_${resId}_${todayStr}`, JSON.stringify({ status: 'ok', timestamp: now.toISOString() }));
-      saveCheckinToFirestore(hId, resId, 'ok').catch(() => {});
-      await fetch('/api/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ residentId: resId, homeId: hId, status: 'ok' }) });
-    } catch {} finally { setSubmitting(false); }
+      localStorage.setItem(`elderwatch_checkin_${resId}_${now.toISOString().split('T')[0]}`, JSON.stringify({ status: 'ok', timestamp: now.toISOString() }));
+      await saveCheckinToFirestore(hId, resId, 'ok');
+      console.log('[ElderWatch] Check-in saved: ok', { homeId: hId, residentId: resId });
+    } catch (err) {
+      console.error('[ElderWatch] Failed to save check-in:', err);
+    } finally { setSubmitting(false); }
   };
 
   const handleHelpClick = async () => {
@@ -308,14 +309,15 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
 
     const resId = deviceBinding?.residentId || 'demo';
     const hId = deviceBinding?.homeId || 'demo';
-    const todayStr = now.toISOString().split('T')[0];
 
     try {
       setSubmitting(true);
-      localStorage.setItem(`elderwatch_checkin_${resId}_${todayStr}`, JSON.stringify({ status: 'not_ok', timestamp: now.toISOString() }));
-      saveCheckinToFirestore(hId, resId, 'not_ok').catch(() => {});
-      await fetch('/api/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ residentId: resId, homeId: hId, status: 'not_ok' }) });
-    } catch {} finally { setSubmitting(false); }
+      localStorage.setItem(`elderwatch_checkin_${resId}_${now.toISOString().split('T')[0]}`, JSON.stringify({ status: 'not_ok', timestamp: now.toISOString() }));
+      await saveCheckinToFirestore(hId, resId, 'not_ok');
+      console.log('[ElderWatch] Check-in saved: not_ok', { homeId: hId, residentId: resId });
+    } catch (err) {
+      console.error('[ElderWatch] Failed to save check-in:', err);
+    } finally { setSubmitting(false); }
   };
 
   const handleUndo = async () => {
@@ -325,8 +327,7 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
     const resId = deviceBinding?.residentId || 'demo';
     const hId = deviceBinding?.homeId || 'demo';
     localStorage.removeItem(`elderwatch_checkin_${resId}_${new Date().toISOString().split('T')[0]}`);
-    saveCheckinToFirestore(hId, resId, 'awaiting').catch(() => {});
-    try { await fetch('/api/checkin/undo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ residentId: resId, homeId: hId }) }); } catch {}
+    try { await saveCheckinToFirestore(hId, resId, 'awaiting'); } catch (err) { console.error('[ElderWatch] Failed to undo:', err); }
   };
 
   const t = T[lang];
@@ -350,11 +351,7 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
         <div style={{ width: '100%', maxWidth: '320px', display: 'flex', flexDirection: 'column', gap: '32px', textAlign: 'center' }}>
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: '#157A4C', display: 'grid', placeItems: 'center' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '28px', height: '28px' }}>
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-              </svg>
-            </div>
+            <img src="/elderwatch-logo.svg" alt="ElderWatch" style={{ width: '48px', height: '48px' }} />
             <span style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.02em' }}>ElderWatch</span>
           </div>
           
@@ -402,11 +399,7 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#157A4C', display: 'grid', placeItems: 'center' }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-            </svg>
-          </div>
+          <img src="/elderwatch-logo.svg" alt="ElderWatch" style={{ width: '32px', height: '32px' }} />
           <span style={{ fontSize: '16px', fontWeight: 700 }}>ElderWatch</span>
         </div>
         
