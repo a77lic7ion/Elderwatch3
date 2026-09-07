@@ -297,17 +297,18 @@ export async function fetchResidentHistory(residentId: string, homeId: string) {
 }
 
 // Fetch check-ins for a home within a date range (inclusive).
+// Note: avoids composite index requirement by filtering dates client-side.
 export async function fetchCheckinsForHomeInRange(homeId: string, startDate: string, endDate: string) {
   const snap = await getDocs(
     query(
       collection(db, 'checkins'),
-      where('homeId', '==', homeId),
-      where('date', '>=', startDate),
-      where('date', '<=', endDate)
+      where('homeId', '==', homeId)
     )
   );
 
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .filter((r: any) => r.date >= startDate && r.date <= endDate);
 }
 
 // Fetch all homes (for admin home selector)
