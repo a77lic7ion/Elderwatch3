@@ -1,7 +1,31 @@
-import { initializeApp, cert } from 'firebase-admin/app';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
-import { readFileSync } from 'fs';
+
+let app;
+
+function getFirebaseAdmin() {
+  if (app) return app;
+  
+  const apps = getApps();
+  if (apps.length > 0) {
+    app = apps[0];
+    return app;
+  }
+
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error('Missing Firebase admin credentials');
+  }
+
+  app = initializeApp({
+    credential: cert({ projectId, clientEmail, privateKey }),
+  });
+  
+  return app;
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'DELETE') {
@@ -15,10 +39,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Initialize Firebase Admin
-    const serviceAccount = JSON.parse(readFileSync('./service-account.json', 'utf8'));
-    const app = initializeApp({ credential: cert(serviceAccount) });
-    const db = getFirestore(app);
+    const adminApp = getFirebaseAdmin();
+    const db = getFirestore(adminApp);
 
     // Delete the resident document
     await db.collection('residents').doc(id).delete();
