@@ -13,7 +13,7 @@ export interface StaffUser {
   homeId: string;
   name: string;
   email: string;
-  role: 'nurse' | 'admin' | 'caregiver';
+  role: 'admin' | 'home_admin';
 }
 
 export interface Resident {

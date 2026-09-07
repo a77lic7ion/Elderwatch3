@@ -104,33 +104,46 @@ export async function deleteHome(homeId: string) {
   }
 }
 
-// Add Staff
+// Add Staff (creates Firebase Auth user + Firestore doc via serverless function)
 export async function addStaff(name: string, email: string, password: string, role: string, homeId: string) {
-  const id = `staff-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-  const newStaff = {
-    id,
-    homeId,
-    name: name.trim(),
-    email: email.trim().toLowerCase(),
-    passwordHash: password.trim(),
-    role,
-    createdAt: new Date().toISOString(),
-  };
-  await setDoc(doc(db, 'staff', id), newStaff);
-  return newStaff;
+  const res = await fetch('/api/create-staff', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, name, role, homeId }),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to create staff member');
+  }
+  return await res.json();
 }
 
-// Update Staff
+// Update Staff (updates Auth user + Firestore doc via serverless function)
 export async function updateStaff(staffId: string, updates: any) {
-  const staffRef = doc(db, 'staff', staffId);
-  await setDoc(staffRef, updates, { merge: true });
-  const snap = await getDoc(staffRef);
-  return { id: snap.id, ...snap.data() };
+  const res = await fetch('/api/update-staff', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ staffId, email: updates.email, password: updates.passwordHash || '', name: updates.name, role: updates.role, homeId: updates.homeId }),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to update staff member');
+  }
+  return await res.json();
 }
 
-// Delete Staff
+// Delete Staff (deletes Auth user + Firestore doc via serverless function)
 export async function deleteStaff(staffId: string) {
-  await deleteDoc(doc(db, 'staff', staffId));
+  const res = await fetch('/api/delete-staff', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ staffId }),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to delete staff member');
+  }
+  return await res.json();
 }
 
 // Add Resident

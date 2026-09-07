@@ -64,7 +64,7 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffEmail, setNewStaffEmail] = useState('');
   const [newStaffPassword, setNewStaffPassword] = useState('');
-  const [newStaffRole, setNewStaffRole] = useState<'nurse' | 'admin' | 'caregiver'>('nurse');
+  const [newStaffRole, setNewStaffRole] = useState<'admin' | 'home_admin'>('home_admin');
   const [newStaffHomeId, setNewStaffHomeId] = useState('');
 
   const [isAddResidentOpen, setIsAddResidentOpen] = useState(false);
@@ -755,12 +755,10 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
                               className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-wider ${
                                 s.role === 'admin'
                                   ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                                  : s.role === 'nurse'
-                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                  : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                  : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                               }`}
                             >
-                              {s.role}
+                              {s.role === 'admin' ? 'Administrator' : 'Home Admin'}
                             </span>
                           </td>
 
@@ -1081,15 +1079,14 @@ export const AdminOverviewView: React.FC<AdminOverviewViewProps> = ({
                 </label>
                 <select
                   value={newStaffRole}
-                  onChange={(e) => setNewStaffRole(e.target.value as 'nurse' | 'admin' | 'caregiver')}
+                  onChange={(e) => setNewStaffRole(e.target.value as 'admin' | 'home_admin')}
                   className={`w-full rounded-xl p-2.5 text-sm border focus:outline-hidden ${
                     isNight
                       ? 'bg-slate-800 border-slate-700 text-white'
                       : 'bg-slate-50 border-slate-300 text-slate-900'
                   }`}
                 >
-                  <option value="nurse">Nurse (Sees Assigned Care Home Dashboard)</option>
-                  <option value="caregiver">Caregiver (Sees Assigned Care Home Dashboard)</option>
+                  <option value="home_admin">Home Administrator (Sees Assigned Home Only)</option>
                   <option value="admin">Administrator (Sees All Homes & Overview)</option>
                 </select>
               </div>
