@@ -52,7 +52,6 @@ interface AdminPanelProps {
   user: StaffUser;
   initialHome: Home;
   onLogout: () => void;
-  onNavigateToResidentScreen: () => void;
   onSimulateDeviceBind: (code: string) => void;
 }
 
@@ -61,7 +60,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   user,
   initialHome,
   onLogout,
-  onNavigateToResidentScreen,
   onSimulateDeviceBind,
 }) => {
   const [isNight] = useAppTheme();
@@ -708,15 +706,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             {/* PWA Install Button */}
             <PWAInstallButton />
 
-            {/* Switch to Resident Screen */}
-            <button
-              onClick={onNavigateToResidentScreen}
-              className="hidden sm:flex px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm items-center gap-1.5 transition cursor-pointer"
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Resident View</span>
-            </button>
-
             {/* User & Logout */}
             <div className={`h-6 w-px mx-1 hidden sm:block ${isNight ? 'bg-slate-800' : 'bg-slate-200'}`} />
             <div className="hidden lg:flex flex-col text-right">
@@ -1052,18 +1041,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </button>
 
             {/* Resident View button in mobile menu */}
-            <button
-              onClick={() => { onNavigateToResidentScreen(); setMobileMenuOpen(false); }}
-              className={`w-full px-4 py-3 text-sm font-bold rounded-xl flex items-center gap-3 transition cursor-pointer sm:hidden ${
-                isNight
-                  ? 'text-emerald-300 hover:bg-slate-800'
-                  : 'text-emerald-700 hover:bg-slate-100'
-              }`}
-            >
-              <Smartphone className="w-4 h-4" />
-              <span>Switch to Resident Screen</span>
-            </button>
-
             <div className={`h-px my-1 ${isNight ? 'bg-slate-800' : 'bg-slate-200'}`} />
 
             <div className={`px-4 py-2 text-xs ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>

@@ -231,7 +231,6 @@ export default function App() {
               user={staffUser}
               initialHome={staffHome}
               onLogout={handleLogout}
-              onNavigateToResidentScreen={() => navigate('checkin')}
               onSimulateDeviceBind={handleSimulateDeviceBind}
             />
           ) : (
