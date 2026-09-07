@@ -124,7 +124,10 @@ export async function saveCheckinToFirestore(
   status: 'ok' | 'not_ok' | 'awaiting',
   notes?: string
 ): Promise<void> {
-  const today = new Date().toISOString().split('T')[0];
+  // Use SAST (UTC+2) date to match admin panel queries
+  const now = new Date();
+  const sastDate = new Date(now.getTime() + (2 * 60 * 60 * 1000));
+  const today = sastDate.toISOString().split('T')[0];
   const docId = `${homeId}_${residentId}_${today}`;
   const checkinRef = doc(db, 'checkins', docId);
 
