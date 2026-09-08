@@ -74,7 +74,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [residents, setResidents] = useState<ResidentTodayView[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'not_ok' | 'awaiting' | 'no_response' | 'ok'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'not_ok' | 'awaiting' | 'no_response' | 'ok' | 'away'>('all');
 
   // Modals
   const [selectedResidentForDetail, setSelectedResidentForDetail] = useState<ResidentTodayView | null>(null);
@@ -212,6 +212,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     return residents
       .filter((r) => {
+        if (statusFilter === 'away') return !!r.isAway;
         if (r.isAway) return false;
         if (statusFilter !== 'all' && r.todayStatus !== statusFilter) return false;
         if (searchQuery.trim()) {
@@ -1200,7 +1201,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  All ({residents.length})
+                  All ({stats.activeTotal})
                 </button>
                 <button
                   onClick={() => setStatusFilter('not_ok')}
@@ -1249,6 +1250,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   }`}
                 >
                   Green "Yes" ({stats.ok})
+                </button>
+                <button
+                  onClick={() => setStatusFilter(statusFilter === 'away' ? 'all' : 'away')}
+                  className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                    statusFilter === 'away'
+                      ? 'bg-indigo-600 text-white'
+                      : isNight
+                        ? 'bg-indigo-950/50 text-indigo-300 hover:bg-indigo-900/50'
+                        : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                  }`}
+                >
+                  Away ({stats.away})
                 </button>
               </div>
             </div>
@@ -1401,68 +1414,76 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               )}
 
               {/* Currently Away Section */}
-              {stats.away > 0 && (
-                <div className={`rounded-2xl border overflow-hidden ${
-                  isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
-                }`}>
-                  <button
-                    onClick={() => setAwaySectionOpen(!awaySectionOpen)}
-                    className={`w-full p-4 flex items-center justify-between text-left transition cursor-pointer ${
-                      isNight ? 'hover:bg-slate-800' : 'hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                        <CalendarOff className="w-5 h-5 text-indigo-600" />
-                      </div>
-                      <div>
-                        <h3 className={`font-bold text-sm ${isNight ? 'text-white' : 'text-slate-900'}`}>
-                          Currently Away
-                        </h3>
-                        <p className={`text-xs ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
-                          {stats.away} resident{stats.away !== 1 ? 's' : ''} excluded from daily check-in
-                        </p>
-                      </div>
-                    </div>
-                    <RefreshCw className={`w-4 h-4 transition-transform ${awaySectionOpen ? 'rotate-180' : ''} ${isNight ? 'text-slate-400' : 'text-slate-500'}`} />
-                  </button>
-                  {awaySectionOpen && (
-                    <div className={`border-t divide-y ${isNight ? 'border-slate-700 divide-slate-800' : 'border-slate-100 divide-slate-50'}`}>
-                      {residents.filter((r) => r.isAway).map((resident) => (
-                        <div key={resident.id} className={`p-4 flex items-center justify-between gap-4 ${isNight ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50/80'}`}>
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span className={`text-xs font-mono font-bold px-2 py-1 rounded-lg shrink-0 ${isNight ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
-                              {resident.roomNumber}
+              {stats.away > 0 && statusFilter !== 'away' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                    <h3 className={`font-bold text-sm flex items-center gap-2 ${isNight ? 'text-indigo-400' : 'text-indigo-700'}`}>
+                      <CalendarOff className="w-4 h-4" />
+                      <span>Currently Away</span>
+                      <span className={`text-xs font-normal ${isNight ? 'text-slate-400' : 'text-slate-400'}`}>
+                        ({stats.away} excluded from check-in)
+                      </span>
+                    </h3>
+                    <button
+                      onClick={() => setStatusFilter('away')}
+                      className={`text-xs font-semibold transition cursor-pointer ${
+                        isNight ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-600 hover:text-indigo-700'
+                      }`}
+                    >
+                      View All →
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    {residents.filter((r) => r.isAway).map((resident) => (
+                      <div
+                        key={resident.id}
+                        onClick={() => setSelectedResidentForAway(resident)}
+                        className={`rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer relative group ${
+                          isNight
+                            ? 'bg-indigo-950/30 border-indigo-800 hover:border-indigo-700 shadow-xs'
+                            : 'bg-indigo-50/50 border-indigo-200 hover:border-indigo-300 shadow-xs'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-indigo-600 text-white">
+                              {resident.roomNumber}{resident.unitNumber ? ` / ${resident.unitNumber}` : ''}
                             </span>
-                            <div className="min-w-0">
-                              <p className={`font-bold text-sm truncate ${isNight ? 'text-white' : 'text-slate-900'}`}>
-                                {resident.name}
-                              </p>
-                              <p className={`text-[11px] ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
-                                {resident.awayStartDate && (
-                                  <>From {resident.awayStartDate}{resident.awayEndDate ? ` to ${resident.awayEndDate}` : ' — no return date'}</>
-                                )}
-                              </p>
-                              {resident.awayNote && (
-                                <p className={`text-[10px] italic ${isNight ? 'text-slate-500' : 'text-slate-400'}`}>
-                                  {resident.awayNote}
-                                </p>
-                              )}
-                            </div>
+                            {resident.isDeviceLinked && (
+                              <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                                <Smartphone className="w-3 h-3 text-emerald-600" />
+                                Linked
+                              </span>
+                            )}
                           </div>
-                          <button
-                            onClick={() => setSelectedResidentForAway(resident)}
-                            className={`px-3 py-1.5 rounded-lg border text-xs font-bold shrink-0 flex items-center gap-1 transition cursor-pointer ${
-                              isNight ? 'border-indigo-700 bg-indigo-950/50 text-indigo-300 hover:bg-indigo-900' : 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-                            }`}
-                          >
-                            <Calendar className="w-3 h-3" />
-                            Mark as Back
-                          </button>
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-indigo-700 bg-indigo-100 px-2.5 py-0.5 rounded-full border border-indigo-300">
+                            <CalendarOff className="w-3.5 h-3.5" />
+                            AWAY
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        <div className="mt-3">
+                          <p className={`font-bold text-base ${isNight ? 'text-white' : 'text-slate-900'}`}>
+                            {resident.name}
+                          </p>
+                          <p className={`text-xs mt-1 ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
+                            {resident.awayStartDate && (
+                              <>From {resident.awayStartDate}{resident.awayEndDate ? ` to ${resident.awayEndDate}` : ' — indefinite'}</>
+                            )}
+                          </p>
+                          {resident.awayNote && (
+                            <p className={`text-[11px] italic mt-1 ${isNight ? 'text-slate-500' : 'text-slate-400'}`}>
+                              "{resident.awayNote}"
+                            </p>
+                          )}
+                        </div>
+                        <div className="mt-3 flex items-center justify-between">
+                          <span className={`text-[11px] font-semibold group-hover:underline ${isNight ? 'text-indigo-400' : 'text-indigo-700'}`}>
+                            Edit Away Period →
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

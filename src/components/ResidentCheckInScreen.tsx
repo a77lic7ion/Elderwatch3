@@ -35,20 +35,19 @@ const CUTOFF_TIME = '9:00';
 const T = {
   en: {
     hello: (h: number) => (h < 12 ? 'Good morning,' : h < 17 ? 'Good afternoon,' : 'Good evening,'),
-    where: (r: ResidentProfile) => `${r.room}, ${r.wing}`,
     okLabel: "I'm OK",
-    okSub: "Tap once. The sisters will know.",
+    okSub: 'Tap once. Sister will know.',
     helpLabel: 'I need help',
-    helpSub: 'A sister will come to you.',
+    helpSub: 'Sister will come to you.',
     okTitle: (name: string) => `Thank you, ${name}.`,
-    okBody: "The sisters know you're up. Have a lovely day.",
+    okBody: "Sister knows you're up. Have a lovely day.",
     okTime: (t: string) => `Checked in at ${t}`,
     undo: 'Undo',
     helpTitle: 'Help is on its way.',
-    helpBody: (sister: string) => `Sister ${sister} has been told.`,
+    helpBody: () => 'Sister has been told.',
     helpTime: (t: string) => `Sent at ${t}`,
     cancel: "I'm fine after all",
-    call: (sister: string) => `Call Sister ${sister}`,
+    call: () => 'Call Sister',
     callSub: 'On duty',
     late: `It's after ${CUTOFF_TIME}. Please tap I'm OK.`,
     linkedTitle: (name: string) => `Welcome, ${name}.`,
@@ -60,20 +59,19 @@ const T = {
   },
   af: {
     hello: (h: number) => (h < 12 ? 'Goeie môre,' : h < 17 ? 'Goeie middag,' : 'Goeienaand,'),
-    where: (r: ResidentProfile) => `${r.room.replace('Room', 'Kamer')}${r.unit ? ` / ${r.unit}` : ''}, ${r.wing}`,
     okLabel: 'Ek is reg',
-    okSub: 'Tik een keer. Die susters sal weet.',
+    okSub: 'Tik een keer. Suster sal weet.',
     helpLabel: 'Ek het hulp nodig',
-    helpSub: "'n Suster sal kom.",
+    helpSub: 'Suster sal kom.',
     okTitle: (name: string) => `Dankie, ${name}.`,
-    okBody: 'Die susters weet jy is op. Geniet jou dag.',
+    okBody: 'Suster weet jy is op. Geniet jou dag.',
     okTime: (t: string) => `Ingeteken om ${t}`,
     undo: 'Herstel',
     helpTitle: 'Hulp is oppad.',
-    helpBody: (sister: string) => `Suster ${sister} is in kennis gestel.`,
+    helpBody: () => 'Suster is in kennis gestel.',
     helpTime: (t: string) => `Gestuur om ${t}`,
     cancel: 'Ek is tog reg',
-    call: (sister: string) => `Bel Suster ${sister}`,
+    call: () => 'Bel Suster',
     callSub: 'Aan diens',
     late: `Dit is na ${CUTOFF_TIME}. Tik Ek is reg.`,
     linkedTitle: (name: string) => `Welkom, ${name}.`,
@@ -701,7 +699,6 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
               }}>
                 {t.hello(now.getHours())} {residentProfile.name}
               </h1>
-              <p style={{ margin: '6px 0 0', fontSize: '16px', opacity: 0.6 }}>{t.where(residentProfile)}</p>
             </div>
 
             {/* Late warning */}
@@ -780,7 +777,7 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
                   background: 'rgba(197,48,48,0.15)', border: '2px solid #C53030'
                 }}>
                   <h2 style={{ margin: 0, fontSize: '28px', lineHeight: 1.1, fontWeight: 700, color: '#C53030' }}>{t.helpTitle}</h2>
-                  <p style={{ margin: 0, fontSize: '18px', opacity: 0.9 }}>{t.helpBody(residentProfile.sister)}</p>
+                  <p style={{ margin: 0, fontSize: '18px', opacity: 0.9 }}>{t.helpBody()}</p>
                   <p style={{ margin: 0, fontSize: '16px', opacity: 0.7 }}>{t.helpTime(formatHHMM(helpTime || now))}</p>
                   <button onClick={handleImFine} disabled={submitting} style={{ 
                     marginTop: 'auto', alignSelf: 'flex-start',
@@ -809,9 +806,13 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
                   width: '40px', height: '40px', borderRadius: '50%',
                   background: '#157A4C', display: 'grid', placeItems: 'center',
                   fontSize: '14px', fontWeight: 700, flexShrink: 0
-                }}>{residentProfile.sisterInitials}</span>
+                }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px' }}>
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                </span>
                 <span style={{ flex: 1 }}>
-                  <span>{t.call(residentProfile.sister)}</span>
+                  <span>{t.call()}</span>
                   <small style={{ display: 'block', fontSize: '14px', opacity: 0.7, fontWeight: 400 }}>{t.callSub}</small>
                 </span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '24px', height: '24px', flexShrink: 0 }}>
