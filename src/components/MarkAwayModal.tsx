@@ -52,9 +52,29 @@ export const MarkAwayModal: React.FC<MarkAwayModalProps> = ({
         }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
+      // If server endpoint returned HTML or non-JSON (Vercel 404), fall back to Firestore
+      const text = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok && data) {
         throw new Error(data.error || 'Failed to mark resident as away');
+      }
+
+      if (!data) {
+        // Server endpoint doesn't exist — fall back to Firestore
+        const { db } = await import('../lib/firebase');
+        const { doc, updateDoc } = await import('firebase/firestore');
+        await updateDoc(doc(db, 'residents', resident.id), {
+          isAway: true,
+          awayStartDate: startDate,
+          awayEndDate: endDate || null,
+          awayNote: note.trim(),
+        });
       }
 
       onSaved();
@@ -79,9 +99,27 @@ export const MarkAwayModal: React.FC<MarkAwayModalProps> = ({
         body: JSON.stringify({ isAway: false }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
+      const text = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok && data) {
         throw new Error(data.error || 'Failed to mark resident as back');
+      }
+
+      if (!data) {
+        const { db } = await import('../lib/firebase');
+        const { doc, updateDoc } = await import('firebase/firestore');
+        await updateDoc(doc(db, 'residents', resident.id), {
+          isAway: false,
+          awayStartDate: null,
+          awayEndDate: null,
+          awayNote: '',
+        });
       }
 
       onSaved();
