@@ -38,6 +38,15 @@ export function getCurrentTimeSAST(): string {
   return sastDate.toISOString().substring(11, 16);
 }
 
+// Check if a resident is currently away based on their away date range
+function isResidentAway(resident: any, today: string): boolean {
+  if (!resident.isAway) return false;
+  if (!resident.awayStartDate) return false;
+  const start = resident.awayStartDate;
+  const end = resident.awayEndDate || '9999-12-31';
+  return today >= start && today <= end;
+}
+
 // Seed Firestore with initial data if empty
 async function seedFirestore() {
   const homesSnap = await getAllDocs('homes');
@@ -123,17 +132,31 @@ export async function runMorningResetJob(homeId?: string) {
   for (const home of targetHomes) {
     if (!home) continue;
     const residents = await getDocsByField('residents', 'homeId', home.id);
+    let awayCount = 0;
     for (const resident of residents) {
       const checkinId = `${home.id}_${resident.id}_${today}`;
-      await setDocById('checkins', checkinId, {
-        id: checkinId,
-        homeId: home.id,
-        residentId: resident.id,
-        date: today,
-        status: 'awaiting',
-        timestamp: new Date().toISOString(),
-        updatedBy: 'morning_job',
-      });
+      if (isResidentAway(resident, today)) {
+        await setDocById('checkins', checkinId, {
+          id: checkinId,
+          homeId: home.id,
+          residentId: resident.id,
+          date: today,
+          status: 'ok',
+          timestamp: new Date().toISOString(),
+          updatedBy: 'auto_away',
+        });
+        awayCount++;
+      } else {
+        await setDocById('checkins', checkinId, {
+          id: checkinId,
+          homeId: home.id,
+          residentId: resident.id,
+          date: today,
+          status: 'awaiting',
+          timestamp: new Date().toISOString(),
+          updatedBy: 'morning_job',
+        });
+      }
       totalResidentsReset++;
     }
 
@@ -142,7 +165,7 @@ export async function runMorningResetJob(homeId?: string) {
       id: jobLogId,
       homeId: home.id,
       jobType: 'morning_reset',
-      description: `07:00 SAST Morning Reset: ${residents.length} residents reset to "awaiting"`,
+      description: `07:00 SAST Morning Reset: ${residents.length - awayCount} residents reset to "awaiting", ${awayCount} auto-checked (away)`,
       residentsAffected: residents.length,
       timestamp: new Date().toISOString(),
     });
@@ -182,6 +205,7 @@ export async function runReminderPushJob(homeId?: string) {
     let awaitingCount = 0;
 
     for (const resident of residents) {
+      if (isResidentAway(resident, today)) continue;
       const checkinId = `${home.id}_${resident.id}_${today}`;
       const checkin = await getDocById('checkins', checkinId);
       if (!checkin || checkin.status === 'awaiting') {
@@ -235,6 +259,7 @@ export async function runCutoffSweepJob(homeId?: string) {
     let homeCount = 0;
 
     for (const resident of residents) {
+      if (isResidentAway(resident, today)) continue;
       const checkinId = `${home.id}_${resident.id}_${today}`;
       const checkin = await getDocById('checkins', checkinId);
       if (checkin && checkin.status === 'awaiting') {
@@ -844,6 +869,44 @@ app.delete('/api/residents/:id', async (req, res) => {
 
   broadcastToHome(auth.homeId, 'resident_deleted', { residentId: req.params.id });
   res.json({ success: true });
+});
+
+// Mark resident as away / mark as back
+app.patch('/api/residents/:id/away', async (req, res) => {
+  const auth = authenticateStaff(req, res);
+  if (!auth) return;
+
+  const resident = await getDocById('residents', req.params.id);
+  if (!resident || (resident as any).homeId !== auth.homeId) {
+    return res.status(404).json({ error: 'Resident not found in this home' });
+  }
+
+  const { isAway, awayStartDate, awayEndDate, awayNote } = req.body;
+
+  const updated: any = { ...resident };
+  if (typeof isAway === 'boolean') {
+    updated.isAway = isAway;
+  }
+  if (awayStartDate !== undefined) {
+    updated.awayStartDate = awayStartDate || null;
+  }
+  if (awayEndDate !== undefined) {
+    updated.awayEndDate = awayEndDate || null;
+  }
+  if (awayNote !== undefined) {
+    updated.awayNote = awayNote || '';
+  }
+
+  // Clear away dates when marking as back
+  if (isAway === false) {
+    updated.awayStartDate = null;
+    updated.awayEndDate = null;
+    updated.awayNote = '';
+  }
+
+  await setDocById('residents', req.params.id, updated);
+  broadcastToHome(auth.homeId, 'resident_updated', { resident: updated });
+  res.json({ resident: updated });
 });
 
 app.post('/api/residents/:id/link-code', async (req, res) => {

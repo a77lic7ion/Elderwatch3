@@ -30,12 +30,15 @@ import {
   Menu,
   X,
   Download,
+  CalendarOff,
+  Calendar,
 } from 'lucide-react';
 import { ResidentTodayView, Home, StaffUser, JobExecutionLog, PushNotificationRecord } from '../types';
 import { playEmergencyAlertSound } from '../utils/audioAlert';
 import { AddEditResidentModal } from './AddEditResidentModal';
 import { ResidentDetailModal } from './ResidentDetailModal';
 import { DeviceLinkQRModal } from './DeviceLinkQRModal';
+import { MarkAwayModal } from './MarkAwayModal';
 
 import { PWAInstallButton } from './PWAInstallButton';
 import { AdminOverviewView } from './AdminOverviewView';
@@ -78,6 +81,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [selectedResidentForQR, setSelectedResidentForQR] = useState<ResidentTodayView | null>(null);
   const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
   const [editingResident, setEditingResident] = useState<ResidentTodayView | null>(null);
+  const [selectedResidentForAway, setSelectedResidentForAway] = useState<ResidentTodayView | null>(null);
+  const [awaySectionOpen, setAwaySectionOpen] = useState(false);
 
 
   // Settings state
@@ -165,14 +170,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Statistics Calculation
   const stats = useMemo(() => {
-    const total = residents.length;
-    const ok = residents.filter((r) => r.todayStatus === 'ok').length;
-    const notOk = residents.filter((r) => r.todayStatus === 'not_ok').length;
-    const noResponse = residents.filter((r) => r.todayStatus === 'no_response').length;
-    const awaiting = residents.filter((r) => r.todayStatus === 'awaiting').length;
+    const activeResidents = residents.filter((r) => !r.isAway);
+    const awayResidents = residents.filter((r) => r.isAway);
+    const total = activeResidents.length;
+    const ok = activeResidents.filter((r) => r.todayStatus === 'ok').length;
+    const notOk = activeResidents.filter((r) => r.todayStatus === 'not_ok').length;
+    const noResponse = activeResidents.filter((r) => r.todayStatus === 'no_response').length;
+    const awaiting = activeResidents.filter((r) => r.todayStatus === 'awaiting').length;
     const linked = residents.filter((r) => r.isDeviceLinked).length;
+    const away = awayResidents.length;
 
-    return { total, ok, notOk, noResponse, awaiting, linked, urgentTotal: notOk + noResponse };
+    return { total, ok, notOk, noResponse, awaiting, linked, away, urgentTotal: notOk + noResponse, activeTotal: activeResidents.length };
   }, [residents]);
 
   // Alert sound when a resident presses Help (not_ok status appears)
@@ -204,6 +212,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     return residents
       .filter((r) => {
+        if (r.isAway) return false;
         if (statusFilter !== 'all' && r.todayStatus !== statusFilter) return false;
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
@@ -1052,7 +1061,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             {/* Stat Summary Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
               {/* Emergency Alert Card (Red) */}
               <button
                 onClick={() => setStatusFilter(statusFilter === 'not_ok' ? 'all' : 'not_ok')}
@@ -1132,6 +1141,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
                 <p className={`text-[11px] mt-1 ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
                   Confirmed safe today
+                </p>
+              </button>
+
+              {/* Away Card (Indigo) */}
+              <button
+                onClick={() => setAwaySectionOpen(!awaySectionOpen)}
+                className={`p-4 rounded-2xl border shadow-xs text-left transition cursor-pointer ${
+                  stats.away > 0
+                    ? isNight
+                      ? 'bg-indigo-950/50 border-indigo-800'
+                      : 'bg-indigo-50 border-indigo-300'
+                    : isNight
+                      ? 'bg-slate-900 border-slate-700'
+                      : 'bg-white border-slate-200'
+                }`}
+              >
+                <div className={`flex items-center justify-between text-xs font-bold uppercase tracking-wider ${isNight ? 'text-slate-300' : 'text-slate-500'}`}>
+                  <span>Away</span>
+                  <CalendarOff className={`w-4 h-4 ${stats.away > 0 ? 'text-indigo-600' : 'text-slate-400'}`} />
+                </div>
+                <div className={`text-3xl font-black mt-2 ${stats.away > 0 ? 'text-indigo-700' : isNight ? 'text-white' : 'text-slate-700'}`}>
+                  {stats.away}
+                </div>
+                <p className={`text-[11px] mt-1 ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Excluded from check-in
                 </p>
               </button>
             </div>
@@ -1365,6 +1399,72 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   })}
                 </div>
               )}
+
+              {/* Currently Away Section */}
+              {stats.away > 0 && (
+                <div className={`rounded-2xl border overflow-hidden ${
+                  isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+                }`}>
+                  <button
+                    onClick={() => setAwaySectionOpen(!awaySectionOpen)}
+                    className={`w-full p-4 flex items-center justify-between text-left transition cursor-pointer ${
+                      isNight ? 'hover:bg-slate-800' : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
+                        <CalendarOff className="w-5 h-5 text-indigo-600" />
+                      </div>
+                      <div>
+                        <h3 className={`font-bold text-sm ${isNight ? 'text-white' : 'text-slate-900'}`}>
+                          Currently Away
+                        </h3>
+                        <p className={`text-xs ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
+                          {stats.away} resident{stats.away !== 1 ? 's' : ''} excluded from daily check-in
+                        </p>
+                      </div>
+                    </div>
+                    <RefreshCw className={`w-4 h-4 transition-transform ${awaySectionOpen ? 'rotate-180' : ''} ${isNight ? 'text-slate-400' : 'text-slate-500'}`} />
+                  </button>
+                  {awaySectionOpen && (
+                    <div className={`border-t divide-y ${isNight ? 'border-slate-700 divide-slate-800' : 'border-slate-100 divide-slate-50'}`}>
+                      {residents.filter((r) => r.isAway).map((resident) => (
+                        <div key={resident.id} className={`p-4 flex items-center justify-between gap-4 ${isNight ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50/80'}`}>
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className={`text-xs font-mono font-bold px-2 py-1 rounded-lg shrink-0 ${isNight ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
+                              {resident.roomNumber}
+                            </span>
+                            <div className="min-w-0">
+                              <p className={`font-bold text-sm truncate ${isNight ? 'text-white' : 'text-slate-900'}`}>
+                                {resident.name}
+                              </p>
+                              <p className={`text-[11px] ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
+                                {resident.awayStartDate && (
+                                  <>From {resident.awayStartDate}{resident.awayEndDate ? ` to ${resident.awayEndDate}` : ' — no return date'}</>
+                                )}
+                              </p>
+                              {resident.awayNote && (
+                                <p className={`text-[10px] italic ${isNight ? 'text-slate-500' : 'text-slate-400'}`}>
+                                  {resident.awayNote}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setSelectedResidentForAway(resident)}
+                            className={`px-3 py-1.5 rounded-lg border text-xs font-bold shrink-0 flex items-center gap-1 transition cursor-pointer ${
+                              isNight ? 'border-indigo-700 bg-indigo-950/50 text-indigo-300 hover:bg-indigo-900' : 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                            }`}
+                          >
+                            <Calendar className="w-3 h-3" />
+                            Mark as Back
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1479,7 +1579,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           {r.phone || '—'}
                         </td>
                         <td className="py-3.5 px-4">
-                          {r.isDeviceLinked ? (
+                          {r.isAway ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800">
+                              <CalendarOff className="w-3 h-3 text-indigo-600" /> Away
+                            </span>
+                          ) : r.isDeviceLinked ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
                               <Check className="w-3 h-3 text-emerald-600" /> Linked
                             </span>
@@ -1490,6 +1594,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-right space-x-1">
+                          <button
+                            onClick={() => setSelectedResidentForAway(r)}
+                            className={`p-1.5 rounded-lg border transition cursor-pointer ${isNight ? 'border-indigo-700 hover:bg-indigo-950/50 text-indigo-400' : 'border-indigo-200 hover:bg-indigo-50 text-indigo-600'}`}
+                            title={r.isAway ? 'Edit Away Period' : 'Mark as Away'}
+                          >
+                            {r.isAway ? <Calendar className="w-3.5 h-3.5" /> : <CalendarOff className="w-3.5 h-3.5" />}
+                          </button>
                           <button
                             onClick={() => setSelectedResidentForQR(r)}
                             className={`p-1.5 rounded-lg border transition cursor-pointer ${isNight ? 'border-slate-700 hover:bg-emerald-950/50 text-emerald-400' : 'border-slate-200 hover:bg-emerald-50 text-emerald-600'}`}
@@ -1833,6 +1944,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           onSimulateDeviceBind={(code) => {
             setSelectedResidentForQR(null);
             onSimulateDeviceBind(code);
+          }}
+        />
+      )}
+
+      {selectedResidentForAway && (
+        <MarkAwayModal
+          resident={selectedResidentForAway}
+          token={token}
+          onClose={() => setSelectedResidentForAway(null)}
+          onSaved={() => {
+            setSelectedResidentForAway(null);
+            fetchResidents();
           }}
         />
       )}

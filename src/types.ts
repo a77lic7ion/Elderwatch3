@@ -33,6 +33,10 @@ export interface Resident {
   notes?: string;
   createdAt: string;
   language?: string;
+  isAway?: boolean;
+  awayStartDate?: string | null;
+  awayEndDate?: string | null;
+  awayNote?: string;
 }
 
 export interface CheckIn {
@@ -43,7 +47,7 @@ export interface CheckIn {
   status: CheckInStatus;
   timestamp: string; // ISO string
   offlineSynced?: boolean;
-  updatedBy: 'resident' | 'staff_override' | 'cutoff_job' | 'morning_job';
+  updatedBy: 'resident' | 'staff_override' | 'cutoff_job' | 'morning_job' | 'auto_away';
   notes?: string;
 }
 

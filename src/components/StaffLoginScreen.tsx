@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { Shield, Lock, Mail, AlertCircle, HelpCircle } from 'lucide-react';
 import { StaffUser, Home } from '../types';
 import { ThemeToggle, useAppTheme } from './ThemeToggle';
-import { loginWithEmail, db } from '../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 
 interface StaffLoginScreenProps {
   onLoginSuccess: (token: string, user: StaffUser, home: Home) => void;
@@ -24,63 +22,46 @@ export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
     setError(null);
 
     try {
-      // Sign in with Firebase Auth
-      const userCredential = await loginWithEmail(email.trim(), password.trim());
-      const firebaseUser = userCredential.user;
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password: password.trim() }),
+      });
 
-      // Get ID token for API calls
-      const token = await firebaseUser.getIdToken();
+      const data = await res.json();
 
-      // Get staff document from Firestore
-      const staffDoc = await getDoc(doc(db, 'staff', firebaseUser.uid));
-      if (!staffDoc.exists()) {
-        setError('Staff account not found. Please contact administrator.');
+      if (!res.ok) {
+        setError(data.error || 'Login failed. Please check your credentials.');
         setLoading(false);
         return;
       }
 
-      const staffData = staffDoc.data();
-
-      // Get home document
-      const homeDoc = await getDoc(doc(db, 'homes', staffData.homeId));
-      const homeData = homeDoc.exists() ? homeDoc.data() : null;
-
       const user: StaffUser = {
-        id: firebaseUser.uid,
-        homeId: staffData.homeId,
-        name: staffData.name,
-        email: staffData.email,
-        role: staffData.role,
+        id: data.user.id,
+        homeId: data.user.homeId,
+        name: data.user.name,
+        email: data.user.email,
+        role: data.user.role,
       };
 
-      const home: Home = homeData ? {
-        id: homeDoc.id,
-        name: homeData.name,
-        cutoffTime: homeData.cutoffTime,
-        timezone: homeData.timezone,
-        createdAt: homeData.createdAt || new Date().toISOString(),
+      const home: Home = data.home ? {
+        id: data.home.id,
+        name: data.home.name,
+        cutoffTime: data.home.cutoffTime,
+        timezone: data.home.timezone,
+        createdAt: data.home.createdAt || new Date().toISOString(),
       } : {
-        id: staffData.homeId,
+        id: data.user.homeId,
         name: 'Village',
         cutoffTime: '09:15',
         timezone: 'Africa/Johannesburg',
         createdAt: new Date().toISOString(),
       };
 
-      onLoginSuccess(token, user, home);
+      onLoginSuccess(data.token, user, home);
     } catch (err: any) {
       console.error('Login error:', err);
-      if (err.code === 'auth/user-not-found') {
-        setError('No account found with this email.');
-      } else if (err.code === 'auth/wrong-password') {
-        setError('Incorrect password.');
-      } else if (err.code === 'auth/invalid-email') {
-        setError('Invalid email address.');
-      } else if (err.code === 'auth/too-many-requests') {
-        setError('Too many failed attempts. Please try again later.');
-      } else {
-        setError('Login failed. Please check your credentials.');
-      }
+      setError('Login failed. Please check your credentials.');
       setLoading(false);
     }
   };
