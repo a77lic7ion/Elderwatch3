@@ -8,7 +8,7 @@ interface ResidentCheckInScreenProps {
   permanentResidentId?: string | null;
 }
 
-type ViewState = 'morning' | 'ok' | 'help' | 'linked' | 'lang_select';
+type ViewState = 'morning' | 'ok' | 'help' | 'linked' | 'lang_select' | 'unpaired';
 type LangCode = 'en' | 'af';
 
 interface ResidentProfile {
@@ -178,6 +178,27 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
         // Update document title for PWA home screen shortcut
         document.title = `${firstName} - Room ${parsed.roomNumber}`;
 
+        // Verify device is still paired — admin may have rotated the link code
+        // which sets isDeviceLinked: false on the server
+        const verifyStillPaired = async () => {
+          try {
+            const { db } = await import('../lib/firebase');
+            const { doc, getDoc } = await import('firebase/firestore');
+            const residentSnap = await getDoc(doc(db, 'residents', parsed.residentId));
+            if (!residentSnap.exists() || !residentSnap.data().isDeviceLinked) {
+              console.warn('[ElderWatch] Device has been unpaired — clearing local binding');
+              localStorage.removeItem('elderwatch_device_binding');
+              localStorage.removeItem('ew_lang');
+              setDeviceBinding(null);
+              setResidentProfile(null);
+              setView('unpaired');
+            }
+          } catch (e) {
+            console.error('[ElderWatch] Failed to verify pairing status:', e);
+          }
+        };
+        verifyStillPaired();
+
         const todayStr = new Date().toISOString().split('T')[0];
         const existingCheckin = localStorage.getItem(`elderwatch_checkin_${parsed.residentId}_${todayStr}`);
         if (existingCheckin) {
@@ -267,6 +288,27 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
     return () => {
       if (unsubscribeFn) unsubscribeFn();
     };
+  }, [deviceBinding]);
+
+  // Periodic revocation check — if admin rotates link code mid-session, kick the device
+  useEffect(() => {
+    if (!deviceBinding) return;
+    const interval = setInterval(async () => {
+      try {
+        const { db } = await import('../lib/firebase');
+        const { doc, getDoc } = await import('firebase/firestore');
+        const snap = await getDoc(doc(db, 'residents', deviceBinding.residentId));
+        if (!snap.exists() || !snap.data().isDeviceLinked) {
+          console.warn('[ElderWatch] Device unpaired during session — clearing binding');
+          localStorage.removeItem('elderwatch_device_binding');
+          localStorage.removeItem('ew_lang');
+          setDeviceBinding(null);
+          setResidentProfile(null);
+          setView('unpaired');
+        }
+      } catch {}
+    }, 60000); // check every 60 seconds
+    return () => clearInterval(interval);
   }, [deviceBinding]);
 
   // Auto-bind from permanent URL or QR code (?pair=CODE)
@@ -576,6 +618,41 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
     const mo = new Intl.DateTimeFormat(t.locale, { month: 'long' }).format(now);
     dateText = `${wd} ${now.getDate()} ${mo}`;
   } catch { dateText = now.toDateString(); }
+
+  // Device unpaired screen
+  if (view === 'unpaired') {
+    return (
+      <div style={{
+        width: '100vw', height: '100dvh',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '24px', fontFamily: '"Atkinson Hyperlegible", sans-serif',
+        background: '#1A221E', color: '#F7FAFC'
+      }}>
+        <div style={{ width: '100%', maxWidth: '320px', display: 'flex', flexDirection: 'column', gap: '24px', textAlign: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+            <img src="/elderwatch-logo.svg" alt="ElderWatch" style={{ width: '48px', height: '48px' }} />
+            <span style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.02em' }}>ElderWatch</span>
+          </div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '26px', fontWeight: 700 }}>This Phone Has Been Unpaired</h1>
+            <p style={{ margin: '16px 0 0', fontSize: '16px', opacity: 0.7 }}>
+              An administrator has removed this phone from the check-in system.
+            </p>
+            <p style={{ margin: '16px 0 0', fontSize: '14px', opacity: 0.5 }}>
+              Please ask staff to re-pair this phone if needed.
+            </p>
+          </div>
+          <div style={{
+            padding: '16px', borderRadius: '16px',
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+            fontSize: '13px', opacity: 0.6
+          }}>
+            ElderWatch — Frailcare Wellness Protection
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Language selection screen
   if (view === 'lang_select') {
