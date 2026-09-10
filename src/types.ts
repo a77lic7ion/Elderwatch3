@@ -26,6 +26,7 @@ export interface Resident {
   isDeviceLinked: boolean;
   linkedAt: string | null;
   oneTimeLinkCode: string | null;
+  linkCodeGeneratedAt?: string | null;
   pushToken?: string | null;
   emergencyContactName?: string;
   emergencyContactRelation?: string;

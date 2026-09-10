@@ -70,7 +70,7 @@ export const DeviceLinkScreen: React.FC<DeviceLinkScreenProps> = ({
         const homeDoc = await getDoc(doc(db, 'homes', residentData.homeId));
         setVerifyResult({
           valid: true,
-          resident: { id: match.id, name: residentData.name, roomNumber: residentData.roomNumber, homeId: residentData.homeId },
+          resident: { id: match.id, name: residentData.name, roomNumber: residentData.roomNumber, homeId: residentData.homeId, linkCodeGeneratedAt: residentData.linkCodeGeneratedAt || null },
           home: homeDoc.exists() ? { id: homeDoc.id, ...homeDoc.data() } as any : null,
         });
       } else {
@@ -78,7 +78,7 @@ export const DeviceLinkScreen: React.FC<DeviceLinkScreenProps> = ({
         const homeDoc = await getDoc(doc(db, 'homes', residentData.homeId));
         setVerifyResult({
           valid: true,
-          resident: { id: snap.docs[0].id, name: residentData.name, roomNumber: residentData.roomNumber, homeId: residentData.homeId },
+          resident: { id: snap.docs[0].id, name: residentData.name, roomNumber: residentData.roomNumber, homeId: residentData.homeId, linkCodeGeneratedAt: residentData.linkCodeGeneratedAt || null },
           home: homeDoc.exists() ? { id: homeDoc.id, ...homeDoc.data() } as any : null,
         });
       }
@@ -96,6 +96,17 @@ export const DeviceLinkScreen: React.FC<DeviceLinkScreenProps> = ({
 
     try {
       const { resident } = verifyResult;
+
+      // Re-read resident at bind time to check if code was revoked
+      const currentSnap = await getDoc(doc(db, 'residents', resident.id));
+      if (currentSnap.exists()) {
+        const currentData = currentSnap.data();
+        if (currentData.linkCodeGeneratedAt && resident.linkCodeGeneratedAt && currentData.linkCodeGeneratedAt !== resident.linkCodeGeneratedAt) {
+          setError('This pairing code has been revoked. Please ask staff for a new QR code.');
+          setBindingInProgress(false);
+          return;
+        }
+      }
 
       // Update resident document: mark as linked, clear the one-time code
       await setDoc(doc(db, 'residents', resident.id), {

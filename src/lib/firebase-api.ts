@@ -322,6 +322,7 @@ export async function regenerateLinkCode(residentId: string, roomNumber: string)
   const newCode = `LINK-${roomNumber.replace(/[^a-zA-Z0-9]/g, '')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
   await setDoc(doc(db, 'residents', residentId), {
     oneTimeLinkCode: newCode,
+    linkCodeGeneratedAt: new Date().toISOString(),
     isDeviceLinked: false,
     linkedAt: null,
   }, { merge: true });
@@ -364,6 +365,7 @@ export async function batchImportResidents(homeId: string, residents: Array<{
       isDeviceLinked: false,
       linkedAt: null,
       oneTimeLinkCode: linkCode,
+      linkCodeGeneratedAt: new Date().toISOString(),
       pushToken: null,
       createdAt: new Date().toISOString(),
     };

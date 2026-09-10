@@ -55,6 +55,7 @@ export default async function handler(req, res) {
       isDeviceLinked: false,
       linkedAt: null,
       oneTimeLinkCode: linkCode,
+      linkCodeGeneratedAt: new Date().toISOString(),
       pushToken: null,
       createdAt: new Date().toISOString(),
     };

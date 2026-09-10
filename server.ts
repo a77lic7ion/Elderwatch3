@@ -803,6 +803,7 @@ app.post('/api/residents', async (req, res) => {
     isDeviceLinked: false,
     linkedAt: null,
     oneTimeLinkCode: linkCode,
+    linkCodeGeneratedAt: new Date().toISOString(),
     pushToken: null,
     emergencyContact: emergencyContact ? emergencyContact.trim() : '',
     notes: notes ? notes.trim() : '',
@@ -922,6 +923,7 @@ app.post('/api/residents/:id/link-code', async (req, res) => {
   const updated = {
     ...resident,
     oneTimeLinkCode: linkCode,
+    linkCodeGeneratedAt: new Date().toISOString(),
     isDeviceLinked: false,
     linkedAt: null,
   };
@@ -951,13 +953,14 @@ app.get('/api/link/verify', async (req, res) => {
       name: (resident as any).name,
       roomNumber: (resident as any).roomNumber,
       homeId: (resident as any).homeId,
+      linkCodeGeneratedAt: (resident as any).linkCodeGeneratedAt || null,
     },
     home: home ? { id: home.id, name: home.name } : null,
   });
 });
 
 app.post('/api/link/bind', async (req, res) => {
-  const { code, pushToken } = req.body;
+  const { code, pushToken, linkCodeGeneratedAt } = req.body;
   if (!code) return res.status(400).json({ error: 'Link code is required' });
 
   const residents = await getAllDocs('residents');
@@ -965,6 +968,11 @@ app.post('/api/link/bind', async (req, res) => {
 
   if (!resident) {
     return res.status(404).json({ error: 'Invalid, expired, or already used linking code.' });
+  }
+
+  // Reject if code was regenerated since this client verified it
+  if (linkCodeGeneratedAt && (resident as any).linkCodeGeneratedAt !== linkCodeGeneratedAt) {
+    return res.status(410).json({ error: 'This pairing link has been revoked. Please scan the new QR code.' });
   }
 
   const updated: any = {
