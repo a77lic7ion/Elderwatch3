@@ -99,6 +99,7 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
   const [deviceBinding, setDeviceBinding] = useState<DeviceBinding | null>(null);
   const [residentProfile, setResidentProfile] = useState<ResidentProfile>(DEFAULT_RESIDENT);
   const [view, setView] = useState<ViewState>('morning');
+  const langChosenRef = useRef(false);
   const [lang, setLang] = useState<LangCode>(() => {
     try {
       const saved = localStorage.getItem('ew_lang');
@@ -203,8 +204,8 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
         const existingCheckin = localStorage.getItem(`elderwatch_checkin_${parsed.residentId}_${todayStr}`);
         if (existingCheckin) {
           const pc = JSON.parse(existingCheckin);
-          if (pc.status === 'ok') { setView('ok'); setCheckInTime(new Date(pc.timestamp)); }
-          else if (pc.status === 'not_ok') { setView('help'); setHelpTime(new Date(pc.timestamp)); }
+          if (pc.status === 'ok') { setView('ok'); setCheckInTime(new Date(pc.timestamp)); langChosenRef.current = true; }
+          else if (pc.status === 'not_ok') { setView('help'); setHelpTime(new Date(pc.timestamp)); langChosenRef.current = true; }
         }
 
         // If no language has been chosen yet, prompt for it now.
@@ -247,6 +248,9 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
 
             // Update localStorage
             localStorage.setItem(`elderwatch_checkin_${deviceBinding.residentId}_${today}`, JSON.stringify({ status, timestamp }));
+
+            // Don't override view until language has been chosen
+            if (!langChosenRef.current) return;
 
             // Update view based on Firestore status
             if (status === 'awaiting') {
@@ -409,12 +413,14 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
         const savedLang = localStorage.getItem('ew_lang');
         if (savedLang === 'af' || savedLang === 'en') {
           setLang(savedLang);
+          langChosenRef.current = true;
           setView('linked');
           setTimeout(() => setView('morning'), 2000);
         } else if (rData.language === 'af' || rData.language === 'en') {
           const firebaseLang = rData.language as LangCode;
           setLang(firebaseLang);
           localStorage.setItem('ew_lang', firebaseLang);
+          langChosenRef.current = true;
           setView('linked');
           setTimeout(() => setView('morning'), 2000);
         } else {
@@ -455,6 +461,7 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
 
   const handleLangSelect = (newLang: LangCode) => {
     setLang(newLang);
+    langChosenRef.current = true;
     localStorage.setItem('ew_lang', newLang);
 
     // Persist language preference to Firestore if a device binding exists
