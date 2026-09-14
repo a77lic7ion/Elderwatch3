@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Shield, Lock, Mail, AlertCircle, HelpCircle } from 'lucide-react';
 import { StaffUser, Home } from '../types';
 import { ThemeToggle, useAppTheme } from './ThemeToggle';
+import { LegalFooter } from './LegalFooter';
 import { loginWithEmail, db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -253,6 +254,8 @@ export const StaffLoginScreen: React.FC<StaffLoginScreenProps> = ({
         <Shield className="w-4 h-4 text-emerald-500" />
         <span>Multi-Tenant High-Security Frailcare System</span>
       </div>
+
+      <LegalFooter className="pb-2" />
     </div>
   );
 };

@@ -8,6 +8,7 @@ import {
   getReminderState,
   refreshReminderSubscription,
 } from '../lib/push';
+import { LEGAL_LINE_1 } from './LegalFooter';
 
 interface ResidentCheckInScreenProps {
   onNavigateToAdmin?: () => void;
@@ -705,7 +706,9 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
             background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
             fontSize: '13px', opacity: 0.6
           }}>
-            ElderWatch — Frailcare Wellness Protection
+            ElderWatch
+            <br />
+            <span style={{ fontSize: '10.5px', opacity: 0.85 }}>{LEGAL_LINE_1}</span>
           </div>
         </div>
       </div>
@@ -752,6 +755,8 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
               Afrikaans
             </button>
           </div>
+
+          <p style={{ margin: 0, fontSize: '10.5px', opacity: 0.5, lineHeight: 1.5 }}>{LEGAL_LINE_1}</p>
         </div>
       </div>
     );

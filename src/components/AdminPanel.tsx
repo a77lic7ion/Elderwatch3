@@ -37,6 +37,7 @@ import { playEmergencyAlertSound } from '../utils/audioAlert';
 import { AddEditResidentModal } from './AddEditResidentModal';
 import { ResidentDetailModal } from './ResidentDetailModal';
 import { DeviceLinkQRModal } from './DeviceLinkQRModal';
+import { LegalFooter } from './LegalFooter';
 import { MarkAwayModal } from './MarkAwayModal';
 
 import { PWAInstallButton } from './PWAInstallButton';
@@ -1874,6 +1875,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           </div>
         )}
+
+        <LegalFooter />
       </main>
 
       {/* MODALS */}
