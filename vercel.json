@@ -8,6 +8,7 @@
     }
   },
   "rewrites": [
+    { "source": "/marketing", "destination": "/marketing.html" },
     { "source": "/link", "destination": "/index.html" },
     { "source": "/link/:code", "destination": "/index.html" },
     { "source": "/checkin", "destination": "/index.html" },
