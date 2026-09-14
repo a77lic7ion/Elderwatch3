@@ -97,6 +97,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportRows, setReportRows] = useState<any[] | null>(null);
   const [reportRange, setReportRange] = useState<{ start: string; end: string } | null>(null);
+  // Daily report (today only)
+  const [dailyReportBusy, setDailyReportBusy] = useState(false);
+  const [dailyReportMsg, setDailyReportMsg] = useState<string | null>(null);
 
   // Audio and Realtime State
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -397,6 +400,44 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     } catch (err) {
       console.error('PDF generation failed:', err);
       alert('Failed to generate PDF. Please try again.');
+    }
+  };
+
+  // Daily report: today only, one row per resident, Yes/No with coloured cells.
+  // Reads the residents already held in state, so it needs no extra fetch.
+  const handleGenerateDailyReport = async () => {
+    if (dailyReportBusy) return;
+    setDailyReportBusy(true);
+    setDailyReportMsg(null);
+
+    try {
+      const sastNow = new Date(Date.now() + 2 * 60 * 60 * 1000);
+      const today = sastNow.toISOString().split('T')[0];
+
+      const { buildDailyReportPdf, dailyReportFileName } = await import('../lib/dailyReport');
+      const doc = await buildDailyReportPdf({
+        homeName: home.name,
+        date: today,
+        residents: residents.map((r) => ({
+          name: r.name,
+          roomNumber: r.roomNumber,
+          unitNumber: r.unitNumber,
+          todayStatus: r.todayStatus,
+          isAway: r.isAway,
+        })),
+      });
+
+      doc.save(dailyReportFileName(home.name, today));
+
+      const yes = residents.filter((r) => r.todayStatus === 'ok').length;
+      setDailyReportMsg(
+        `Daily report for ${today} downloaded — ${yes} checked in, ${residents.length - yes} not, out of ${residents.length} residents.`
+      );
+    } catch (err) {
+      console.error('Daily report generation failed:', err);
+      setDailyReportMsg('Could not generate the daily report. Please try again.');
+    } finally {
+      setDailyReportBusy(false);
     }
   };
 
@@ -1881,6 +1922,48 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         {/* =================================================================== */}
         {activeTab === 'reports' && (
           <div className="space-y-6">
+            {/* DAILY REPORT — today only, one row per resident */}
+            <div className={`p-6 rounded-3xl border shadow-xs ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
+              <div className="flex items-center gap-2 mb-4">
+                <Calendar className="w-5 h-5 text-emerald-600" />
+                <h3 className={`text-lg font-bold ${isNight ? 'text-white' : 'text-slate-900'}`}>Daily Report (Today)</h3>
+              </div>
+
+              <p className={`text-xs leading-relaxed mb-4 ${isNight ? 'text-slate-400' : 'text-slate-600'}`}>
+                One-page PDF of today's check-ins: every resident, their room/unit, and whether they have checked in
+                today — <span className="text-emerald-600 font-bold">Yes</span> in green,{' '}
+                <span className="text-rose-600 font-bold">No</span> in red. Use it for sister rounds, handover or the
+                daily file.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={handleGenerateDailyReport}
+                  disabled={dailyReportBusy}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  {dailyReportBusy ? 'Generating...' : "Generate Today's PDF"}
+                </button>
+                <span className={`text-xs ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
+                  {residents.length} resident{residents.length === 1 ? '' : 's'} in {home.name}
+                </span>
+              </div>
+
+              {dailyReportMsg && (
+                <div className={`mt-4 p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                  dailyReportMsg.startsWith('Could not')
+                    ? 'bg-rose-50 border border-rose-200 text-rose-800'
+                    : isNight ? 'bg-emerald-950 border border-emerald-800 text-emerald-200' : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                }`}>
+                  {dailyReportMsg.startsWith('Could not')
+                    ? <AlertTriangle className="w-4 h-4 text-rose-600" />
+                    : <CheckCircle className="w-4 h-4 text-emerald-600" />}
+                  <span>{dailyReportMsg}</span>
+                </div>
+              )}
+            </div>
+
             <div className={`p-6 rounded-3xl border shadow-xs ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
               <div className="flex items-center gap-2 mb-4">
                 <FileText className="w-5 h-5 text-emerald-600" />
