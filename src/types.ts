@@ -28,6 +28,14 @@ export interface Resident {
   oneTimeLinkCode: string | null;
   linkCodeGeneratedAt?: string | null;
   pushToken?: string | null;
+  pushSubscription?: {
+    endpoint: string;
+    keys: { p256dh?: string; auth?: string };
+    userAgent?: string;
+    enabledAt?: string;
+  } | null;
+  reminderEnabledAt?: string | null;
+  reminderTimeSAST?: string;
   emergencyContactName?: string;
   emergencyContactRelation?: string;
   emergencyContactNumber?: string;

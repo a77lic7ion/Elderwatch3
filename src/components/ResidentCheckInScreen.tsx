@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DeviceBinding } from '../types';
 import { saveCheckinToFirestore } from '../lib/firebase';
+import {
+  ReminderState,
+  REMINDER_TIME_SAST,
+  enableReminders,
+  getReminderState,
+  refreshReminderSubscription,
+} from '../lib/push';
 
 interface ResidentCheckInScreenProps {
   onNavigateToAdmin?: () => void;
@@ -113,6 +120,8 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [flashKind, setFlashKind] = useState<'ok' | 'help' | null>(null);
   const flashTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [reminderState, setReminderState] = useState<ReminderState>('unknown');
+  const [reminderBusy, setReminderBusy] = useState(false);
 
   const playTone = useCallback((good: boolean) => {
     try {
@@ -314,6 +323,48 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
     }, 60000); // check every 60 seconds
     return () => clearInterval(interval);
   }, [deviceBinding]);
+
+  // Reminder (push notification) state — read it once the phone is paired, and
+  // re-assert the subscription so iOS browsers that rotate it don't silently
+  // stop delivering the 08:00 reminder.
+  useEffect(() => {
+    if (!deviceBinding) return;
+    let cancelled = false;
+    (async () => {
+      const state = await refreshReminderSubscription(deviceBinding.residentId);
+      if (!cancelled) setReminderState(state);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [deviceBinding]);
+
+  const handleEnableReminders = async () => {
+    if (!deviceBinding || reminderBusy) return;
+    setReminderBusy(true);
+    try {
+      const { state } = await enableReminders(deviceBinding.residentId);
+      setReminderState(state);
+      if (state === 'on') {
+        playTone(true);
+        buzz(60);
+      }
+    } finally {
+      setReminderBusy(false);
+    }
+  };
+
+  // Shown only when reminders can still be switched on from this screen.
+  const reminderHint =
+    reminderState === 'off'
+      ? 'Daily reminders are OFF — tap to turn on'
+      : reminderState === 'needs-install'
+      ? 'Add ElderWatch to the Home Screen, then turn reminders on'
+      : reminderState === 'denied'
+      ? 'Notifications are blocked in this phone\'s settings'
+      : '';
+
+  const reminderCanBeEnabled = reminderState === 'off' || reminderState === 'needs-install';
 
   // Auto-bind from permanent URL or QR code (?pair=CODE)
   useEffect(() => {
@@ -727,8 +778,27 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
           <span style={{ fontSize: '16px', fontWeight: 700 }}>ElderWatch</span>
         </div>
         
-        {/* Language toggle */}
-        <div style={{ display: 'inline-flex', borderRadius: '8px', padding: '2px', background: 'rgba(255,255,255,0.1)' }}>
+        {/* Reminder bell + language toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={reminderCanBeEnabled ? handleEnableReminders : undefined}
+            aria-label={`Daily reminders ${reminderState === 'on' ? 'on' : 'off'}`}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              border: 0, borderRadius: '8px', padding: '6px 10px',
+              background: reminderState === 'on' ? '#157A4C' : 'rgba(255,255,255,0.1)',
+              color: reminderState === 'on' ? 'white' : 'rgba(255,255,255,0.7)',
+              fontSize: '13px', fontWeight: 700,
+              cursor: reminderCanBeEnabled ? 'pointer' : 'default'
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            <span>{reminderState === 'on' ? REMINDER_TIME_SAST : 'OFF'}</span>
+          </button>
+          <div style={{ display: 'inline-flex', borderRadius: '8px', padding: '2px', background: 'rgba(255,255,255,0.1)' }}>
           <button onClick={() => { setLang('en'); localStorage.setItem('ew_lang', 'en'); }} style={{ 
             border: 0, borderRadius: '6px', padding: '6px 12px',
             background: lang === 'en' ? '#157A4C' : 'transparent',
@@ -741,6 +811,7 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
             color: lang === 'af' ? 'white' : 'rgba(255,255,255,0.6)',
             fontSize: '14px', fontWeight: 700, cursor: 'pointer'
           }}>AF</button>
+          </div>
         </div>
       </div>
 
@@ -791,6 +862,31 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
               }}>
                 {t.late}
               </div>
+            )}
+
+            {/* Reminder status — disappears once reminders are switched on */}
+            {reminderHint && view !== 'linked' && (
+              <button
+                onClick={reminderCanBeEnabled ? handleEnableReminders : undefined}
+                disabled={!reminderCanBeEnabled || reminderBusy}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left',
+                  padding: '10px 14px', borderRadius: '12px',
+                  background: reminderCanBeEnabled ? 'rgba(236,201,75,0.2)' : 'rgba(255,255,255,0.06)',
+                  border: reminderCanBeEnabled ? '2px solid #ECC94B' : '1px solid rgba(255,255,255,0.15)',
+                  color: reminderCanBeEnabled ? '#ECC94B' : 'rgba(255,255,255,0.6)',
+                  fontSize: '14px', fontWeight: 600,
+                  cursor: reminderCanBeEnabled ? 'pointer' : 'default',
+                  marginBottom: '12px', flexShrink: 0,
+                  opacity: reminderBusy ? 0.6 : 1
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', flexShrink: 0 }}>
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                <span>{reminderBusy ? 'Turning on…' : reminderHint}</span>
+              </button>
             )}
 
             {/* Buttons - take up most of the screen */}

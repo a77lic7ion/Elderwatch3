@@ -1,5 +1,7 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
+import * as dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import {
   firestore,
@@ -21,6 +23,22 @@ import {
 
 const app = express();
 const PORT = 3000;
+
+// --- Reminder push credentials -------------------------------------------
+// The shared sender (api/cron/reminder-push.js) reads plain env vars, which
+// Vercel provides in production. Locally those come from service-account.json
+// plus .env.local, so bridge them once at boot.
+dotenv.config({ path: path.join(process.cwd(), '.env.local') });
+try {
+  const serviceAccount = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'service-account.json'), 'utf-8')
+  );
+  if (!process.env.FIREBASE_PROJECT_ID) process.env.FIREBASE_PROJECT_ID = serviceAccount.project_id;
+  if (!process.env.FIREBASE_CLIENT_EMAIL) process.env.FIREBASE_CLIENT_EMAIL = serviceAccount.client_email;
+  if (!process.env.FIREBASE_PRIVATE_KEY) process.env.FIREBASE_PRIVATE_KEY = serviceAccount.private_key;
+} catch {
+  // lib/firebase-admin.ts will fail loudly if the service account is missing.
+}
 
 app.use(express.json());
 
@@ -199,40 +217,53 @@ export async function runReminderPushJob(homeId?: string) {
 
   let totalReminded = 0;
 
+  // Who still needs a nudge — read-only, keeps the job log accurate.
+  const awaitingByHome: Record<string, number> = {};
   for (const home of targetHomes) {
     if (!home) continue;
     const residents = await getDocsByField('residents', 'homeId', home.id);
     let awaitingCount = 0;
-
     for (const resident of residents) {
       if (isResidentAway(resident, today)) continue;
-      const checkinId = `${home.id}_${resident.id}_${today}`;
-      const checkin = await getDocById('checkins', checkinId);
-      if (!checkin || checkin.status === 'awaiting') {
-        awaitingCount++;
-        const pushLogId = `push-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-        await setDocById('pushLogs', pushLogId, {
-          id: pushLogId,
-          homeId: home.id,
-          targetType: 'resident',
-          recipientName: `${resident.name} (Room ${resident.roomNumber})`,
-          title: 'ElderWatch Reminder',
-          body: 'Friendly reminder: Please tap Yes or No on your screen before cutoff.',
-          timestamp: new Date().toISOString(),
-          status: 'delivered',
-        });
-      }
+      const checkin = await getDocById('checkins', `${home.id}_${resident.id}_${today}`);
+      if (!checkin || checkin.status === 'awaiting') awaitingCount++;
     }
-
+    awaitingByHome[home.id] = awaitingCount;
     totalReminded += awaitingCount;
+  }
+
+  // Deliver for real — the SAME code path the production Vercel cron uses, so
+  // what we test locally is exactly what runs at 08:00 SAST in production.
+  let pushResult: any = null;
+  try {
+    const { sendReminderPushes } = await import('./api/cron/reminder-push.js');
+    pushResult = await sendReminderPushes({
+      dryRun: process.env.REMINDER_DRY_RUN === '1',
+    });
+    console.log(
+      '[REMINDER] push result:',
+      JSON.stringify({ ...pushResult, targets: pushResult?.targets?.length })
+    );
+  } catch (e: any) {
+    console.error('[REMINDER] push send failed:', e?.message || e);
+  }
+
+  for (const home of targetHomes) {
+    if (!home) continue;
+    const awaitingCount = awaitingByHome[home.id] ?? 0;
 
     const jobLogId = `job-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const homeStats = pushResult?.perHome?.[home.id] || { targets: 0, sent: 0, failed: 0, removedDeadSubscriptions: 0 };
     await setDocById('jobLogs', jobLogId, {
       id: jobLogId,
       homeId: home.id,
       jobType: 'reminder_push',
-      description: `08:45 SAST Reminder: Sent to ${awaitingCount} residents still awaiting check-in`,
-      residentsAffected: awaitingCount,
+      description:
+        `08:00 SAST Reminder: ${awaitingCount} resident(s) awaiting check-in, ` +
+        `${homeStats.sent} phone reminder(s) delivered` +
+        (homeStats.failed ? `, ${homeStats.failed} failed` : '') +
+        (homeStats.removedDeadSubscriptions ? `, ${homeStats.removedDeadSubscriptions} stale device(s) cleared` : ''),
+      residentsAffected: homeStats.sent,
       timestamp: new Date().toISOString(),
     });
 
@@ -347,8 +378,8 @@ setInterval(async () => {
     await runMorningResetJob();
   }
 
-  if (currentTime === '08:45') {
-    console.log('[CRON SAST] 08:45 SAST reached: executing reminder push job');
+  if (currentTime === '08:00') {
+    console.log('[CRON SAST] 08:00 SAST reached: executing reminder push job');
     await runReminderPushJob();
   }
 
@@ -1170,7 +1201,7 @@ app.post('/api/jobs/trigger-reminder-push', async (req, res) => {
   const auth = authenticateStaff(req, res);
   if (!auth) return;
   const count = await runReminderPushJob(auth.homeId);
-  res.json({ success: true, message: `08:45 Reminders dispatched to ${count} awaiting residents.` });
+  res.json({ success: true, message: `08:00 Reminders dispatched to ${count} awaiting residents.` });
 });
 
 app.post('/api/jobs/trigger-cutoff-sweep', async (req, res) => {
