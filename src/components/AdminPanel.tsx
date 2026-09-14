@@ -26,7 +26,6 @@ import {
   Check,
   Building,
   Upload,
-  Link2,
   Menu,
   X,
   Download,
@@ -66,7 +65,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onSimulateDeviceBind,
 }) => {
   const [isNight] = useAppTheme();
-  const [activeTab, setActiveTab] = useState<'overview' | 'dashboard' | 'residents' | 'linking' | 'settings' | 'reports'>(
+  const [activeTab, setActiveTab] = useState<'overview' | 'dashboard' | 'residents' | 'settings' | 'reports'>(
     user.role === 'admin' ? 'overview' : 'dashboard'
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -818,29 +817,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab('linking')}
-            className={`px-4 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-              activeTab === 'linking'
-                ? isNight
-                  ? 'border-emerald-500 text-emerald-400'
-                  : 'border-emerald-600 text-emerald-700'
-                : isNight
-                ? 'border-transparent text-slate-400 hover:text-slate-200'
-                : 'border-transparent text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            <Link2 className="w-4 h-4" />
-            <span>Device Pairing</span>
-            <span
-              className={`text-[10px] px-2 py-0.2 rounded-full font-mono ${
-                isNight ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              {stats.linked}/{stats.total}
-            </span>
-          </button>
-
-          <button
             onClick={() => setActiveTab('settings')}
             className={`px-4 py-3 text-xs font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
               activeTab === 'settings'
@@ -888,14 +864,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               {activeTab === 'overview' && <Shield className="w-4 h-4 text-purple-400" />}
               {activeTab === 'dashboard' && <Activity className="w-4 h-4 text-emerald-500" />}
               {activeTab === 'residents' && <Users className="w-4 h-4 text-emerald-500" />}
-              {activeTab === 'linking' && <Link2 className="w-4 h-4 text-emerald-500" />}
               {activeTab === 'settings' && <Settings className="w-4 h-4 text-emerald-500" />}
               {activeTab === 'reports' && <FileText className="w-4 h-4 text-emerald-500" />}
               <span className="text-sm font-bold">
                 {activeTab === 'overview' && 'All Homes & Staff Overview'}
                 {activeTab === 'dashboard' && 'Live Status Dashboard'}
                 {activeTab === 'residents' && 'Resident Management'}
-                {activeTab === 'linking' && 'Device Pairing'}
                 {activeTab === 'settings' && 'Home Settings & Daily Cycle'}
                 {activeTab === 'reports' && 'Reports & Exports'}
               </span>
@@ -909,13 +883,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   isNight ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
                 }`}>
                   {stats.total}
-                </span>
-              )}
-              {activeTab === 'linking' && (
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                  isNight ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
-                }`}>
-                  {stats.linked}/{stats.total}
                 </span>
               )}
             </div>
@@ -992,29 +959,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 isNight ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
               }`}>
                 {stats.total}
-              </span>
-            </button>
-
-            <button
-              onClick={() => { setActiveTab('linking'); setMobileMenuOpen(false); }}
-              className={`w-full px-4 py-3 text-sm font-bold rounded-xl flex items-center justify-between transition cursor-pointer ${
-                activeTab === 'linking'
-                  ? isNight
-                    ? 'bg-emerald-950/60 text-emerald-300'
-                    : 'bg-emerald-50 text-emerald-700'
-                  : isNight
-                  ? 'text-slate-300 hover:bg-slate-800'
-                  : 'text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Link2 className="w-4 h-4 text-emerald-500" />
-                <span>Device Pairing</span>
-              </div>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                isNight ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
-              }`}>
-                {stats.linked}/{stats.total}
               </span>
             </button>
 
@@ -1683,78 +1627,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {/* =================================================================== */}
-        {/* 3. DEVICE PAIRING TAB */}
-        {/* =================================================================== */}
-        {activeTab === 'linking' && (
-          <div className="space-y-5">
-            {/* Explanatory Banner */}
-            <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-md space-y-2">
-              <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
-                <Smartphone className="w-4 h-4" />
-                <span>Resident Device Pairing</span>
-              </div>
-              <h2 className="text-xl sm:text-2xl font-black">ElderWatch Device Setup</h2>
-              <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-                Staff visit the resident, open the pairing URL on the resident's phone, enter the pairing code, and tap "Lock This Phone to Resident". The browser permanently stores that resident's identity, locking the screen to the high-contrast Yes/No check-in.
-              </p>
-            </div>
-
-            {/* Onboarding Progress Card */}
-            <div className={`p-5 rounded-2xl border shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 ${isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Onboarding Rollout Progress</p>
-                <h3 className={`text-2xl font-black mt-1 ${isNight ? 'text-white' : 'text-slate-900'}`}>
-                  {stats.linked} of {stats.total} phones paired ({Math.round((stats.linked / (stats.total || 1)) * 100)}%)
-                </h3>
-              </div>
-              <div className={`w-full sm:w-64 h-3 rounded-full overflow-hidden ${isNight ? 'bg-slate-800 border border-slate-700' : 'bg-slate-100 border border-slate-200'}`}>
-                <div
-                  className="h-full bg-emerald-600 transition-all duration-500"
-                  style={{ width: `${(stats.linked / (stats.total || 1)) * 100}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Residents Ready for Pairing */}
-            <div className="space-y-3">
-              <h3 className={`font-bold text-sm ${isNight ? 'text-white' : 'text-slate-800'}`}>
-                Select a Resident to View / Generate Pairing Code
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {residents.map((r) => (
-                  <div
-                    key={r.id}
-                    className={`p-4 rounded-2xl border shadow-xs flex items-center justify-between gap-3 hover:border-emerald-500 transition ${
-                      isNight ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
-                    }`}
-                  >
-                    <div>
-                      <span className="text-[11px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                        ROOM {r.roomNumber}
-                      </span>
-                      <h4 className={`font-bold text-sm mt-1 ${isNight ? 'text-white' : 'text-slate-900'}`}>{r.name}</h4>
-                      <p className={`text-[11px] ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
-                        {r.isDeviceLinked ? 'Paired & Active' : 'Not yet paired'}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setSelectedResidentForQR(r)}
-                      className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-                    >
-                      <Link2 className="w-3.5 h-3.5" />
-                      <span>Pair Device</span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* =================================================================== */}
-        {/* 4. HOME SETTINGS & DAILY CYCLE SCHEDULER TAB */}
+        {/* 3. HOME SETTINGS & DAILY CYCLE SCHEDULER TAB */}
         {/* =================================================================== */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
@@ -1897,7 +1772,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         )}
 
         {/* =================================================================== */}
-        {/* 5. REPORTS & EXPORTS TAB */}
+        {/* 4. REPORTS & EXPORTS TAB */}
         {/* =================================================================== */}
         {activeTab === 'reports' && (
           <div className="space-y-6">
