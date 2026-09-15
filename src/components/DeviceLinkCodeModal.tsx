@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Copy, Check, Link2, Smartphone, RefreshCw, Key, Download, Printer } from 'lucide-react';
 import { ResidentTodayView } from '../types';
 
-interface DeviceLinkQRModalProps {
+interface DeviceLinkCodeModalProps {
   resident: ResidentTodayView;
   onClose: () => void;
   onCodeRegenerated: () => void;
   onSimulateDeviceBind: (code: string) => void;
 }
 
-export const DeviceLinkQRModal: React.FC<DeviceLinkQRModalProps> = ({
+export const DeviceLinkCodeModal: React.FC<DeviceLinkCodeModalProps> = ({
   resident,
   onClose,
   onCodeRegenerated,

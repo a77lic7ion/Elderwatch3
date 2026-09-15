@@ -36,7 +36,7 @@ import { ResidentTodayView, Home, StaffUser, JobExecutionLog, PushNotificationRe
 import { playEmergencyAlertSound } from '../utils/audioAlert';
 import { AddEditResidentModal } from './AddEditResidentModal';
 import { ResidentDetailModal } from './ResidentDetailModal';
-import { DeviceLinkQRModal } from './DeviceLinkQRModal';
+import { DeviceLinkCodeModal } from './DeviceLinkCodeModal';
 import { LegalFooter } from './LegalFooter';
 import { MarkAwayModal } from './MarkAwayModal';
 
@@ -78,7 +78,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Modals
   const [selectedResidentForDetail, setSelectedResidentForDetail] = useState<ResidentTodayView | null>(null);
-  const [selectedResidentForQR, setSelectedResidentForQR] = useState<ResidentTodayView | null>(null);
+  const [selectedResidentForCode, setSelectedResidentForCode] = useState<ResidentTodayView | null>(null);
   const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
   const [editingResident, setEditingResident] = useState<ResidentTodayView | null>(null);
   const [selectedResidentForAway, setSelectedResidentForAway] = useState<ResidentTodayView | null>(null);
@@ -565,10 +565,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  // Open the QR pairing modal — the modal auto-generates a code on open
+  // Open the code pairing modal — the modal auto-generates a code on open
   // and exposes a "Rotate Pairing URL" action inside the modal itself.
   const handleOpenPairModal = (resident: ResidentTodayView) => {
-    setSelectedResidentForQR(resident);
+    setSelectedResidentForCode(resident);
   };
 
   // Manual rotation (kept for compatibility with batch operations)
@@ -1577,7 +1577,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             {r.isAway ? <Calendar className="w-3.5 h-3.5" /> : <CalendarOff className="w-3.5 h-3.5" />}
                           </button>
                           <button
-                            onClick={() => setSelectedResidentForQR(r)}
+                            onClick={() => setSelectedResidentForCode(r)}
                             className={`p-1.5 rounded-lg border transition cursor-pointer ${isNight ? 'border-slate-700 hover:bg-emerald-950/50 text-emerald-400' : 'border-slate-200 hover:bg-emerald-50 text-emerald-600'}`}
                             title="Show Pairing Code"
                           >
@@ -1874,9 +1874,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           resident={selectedResidentForDetail}
           token={token}
           onClose={() => setSelectedResidentForDetail(null)}
-          onOpenQR={(r) => {
+          onOpenCode={(r) => {
             setSelectedResidentForDetail(null);
-            setSelectedResidentForQR(r);
+            setSelectedResidentForCode(r);
           }}
           onStatusUpdated={() => {
             fetchResidents();
@@ -1885,14 +1885,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         />
       )}
 
-      {selectedResidentForQR && (
-        <DeviceLinkQRModal
-          resident={selectedResidentForQR}
+      {selectedResidentForCode && (
+        <DeviceLinkCodeModal
+          resident={selectedResidentForCode}
           token={token}
-          onClose={() => setSelectedResidentForQR(null)}
+          onClose={() => setSelectedResidentForCode(null)}
           onCodeRegenerated={fetchResidents}
           onSimulateDeviceBind={(code) => {
-            setSelectedResidentForQR(null);
+            setSelectedResidentForCode(null);
             onSimulateDeviceBind(code);
           }}
         />

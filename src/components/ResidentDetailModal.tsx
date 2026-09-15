@@ -9,7 +9,7 @@ interface ResidentDetailModalProps {
   resident: ResidentTodayView;
   token: string;
   onClose: () => void;
-  onOpenQR: (resident: ResidentTodayView) => void;
+  onOpenCode: (resident: ResidentTodayView) => void;
   onStatusUpdated: () => void;
 }
 
@@ -17,7 +17,7 @@ export const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
   resident,
   token,
   onClose,
-  onOpenQR,
+  onOpenCode,
   onStatusUpdated,
 }) => {
   const [isNight] = useAppTheme();
@@ -216,7 +216,7 @@ export const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
                 {showOverrideForm ? 'Hide Staff Override' : 'Staff Override / In-Person Visit'}
               </button>
               <button
-                onClick={() => onOpenQR(resident)}
+                onClick={() => onOpenCode(resident)}
                 className={`text-xs font-semibold flex items-center gap-1 ${isNight ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-700 hover:text-emerald-800'}`}
               >
                 <Key className="w-3.5 h-3.5" />
@@ -323,7 +323,7 @@ export const ResidentDetailModal: React.FC<ResidentDetailModalProps> = ({
         {/* Footer */}
         <div className={`p-4 border-t flex items-center justify-between ${isNight ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
           <button
-            onClick={() => onOpenQR(resident)}
+            onClick={() => onOpenCode(resident)}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 text-white font-semibold text-xs hover:bg-slate-800 transition"
           >
             <Key className="w-4 h-4" />

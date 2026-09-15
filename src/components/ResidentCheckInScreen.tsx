@@ -407,12 +407,12 @@ export const ResidentCheckInScreen: React.FC<ResidentCheckInScreenProps> = ({
           // Verify the code belongs to this resident
           const r = await getDoc(doc(db, 'residents', permanentResidentId));
           if (!r.exists()) {
-            console.error('[ElderWatch] Resident not found for QR pair:', permanentResidentId);
+            console.error('[ElderWatch] Resident not found for pairing code:', permanentResidentId);
             return;
           }
           const rDataCheck = r.data();
           if (!rDataCheck.oneTimeLinkCode || rDataCheck.oneTimeLinkCode.toUpperCase() !== normalized) {
-            console.warn('[ElderWatch] QR pair code does not match this resident');
+            console.warn('[ElderWatch] pairing code does not match this resident');
             return;
           }
           // Store linkCodeGeneratedAt so we can reject stale codes at bind time
