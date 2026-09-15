@@ -620,77 +620,78 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           isNight ? 'bg-slate-900/95 backdrop-blur-md border-slate-800' : 'bg-white border-slate-200'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-          {/* Brand & Home Scope */}
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <img src="/elderwatch-logo.png" alt="ElderWatch" className="w-10 h-10 rounded-2xl shadow-md shrink-0" />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className={`font-extrabold text-base sm:text-lg tracking-tight ${isNight ? 'text-white' : 'text-slate-900'}`}>
-                  ElderWatch
-                </h1>
-                <span className="hidden sm:inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  STAFF PORTAL
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-2 flex-wrap">
+          {/* Brand: logo + village dropdown (same row, uniform height, no title) */}
+          <div className="flex items-center gap-2 min-w-0">
+            <img src="/elderwatch-logo.png" alt="ElderWatch" className="w-8 h-8 md:w-9 md:h-9 rounded-2xl shadow-md shrink-0" />
+            {user.role === 'admin' && allHomes.length > 1 ? (
+              <select
+                value={home.id}
+                onChange={(e) => {
+                  const selected = allHomes.find((h) => h.id === e.target.value);
+                  if (selected) {
+                    setHome(selected);
+                    setHomeNameInput(selected.name);
+                    setCutoffTimeInput(selected.cutoffTime);
+                  }
+                }}
+                className={`text-xs font-bold py-1 px-1.5 rounded-lg border focus:outline-hidden cursor-pointer max-w-[110px] ${
+                  isNight
+                    ? 'bg-slate-900 border-slate-700 text-emerald-300'
+                    : 'bg-white border-slate-300 text-emerald-800'
+                }`}
+              >
+                {allHomes.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.name} ({h.cutoffTime})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className={`text-xs font-medium truncate flex-shrink-0 ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
+                {home.name}
+                <span className="hidden sm:inline"> • </span>
+                <span className="hidden sm:inline">Cutoff: {home.cutoffTime} SAST</span>
+              </span>
+            )}
+            {/* Desktop-only meta badges, same height as rest */}
+            <div className="hidden md:flex items-center gap-1.5">
+              <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                STAFF PORTAL
+              </span>
+              {realtimeConnected ? (
+                <span className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Live
                 </span>
-                {realtimeConnected ? (
-                  <span className="hidden sm:flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Live
-                  </span>
-                ) : (
-                  <span className="hidden sm:flex items-center gap-1 text-[11px] text-slate-400">
-                    <span className="w-2 h-2 rounded-full bg-slate-300" />
-                    Connecting...
-                  </span>
-                )}
-                <span className="hidden sm:flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-200/80">
-                  <span className="hidden md:inline font-mono text-[10px]">
-                    {firebaseConfig.projectId}
-                  </span>
-                </span>
-              </div>
-              {user.role === 'admin' && allHomes.length > 1 ? (
-                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                  <Building className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <select
-                    value={home.id}
-                    onChange={(e) => {
-                      const selected = allHomes.find((h) => h.id === e.target.value);
-                      if (selected) {
-                        setHome(selected);
-                        setHomeNameInput(selected.name);
-                        setCutoffTimeInput(selected.cutoffTime);
-                      }
-                    }}
-                    className={`text-xs font-bold py-0.5 px-2 rounded-lg border focus:outline-hidden cursor-pointer max-w-[180px] ${
-                      isNight
-                        ? 'bg-slate-900 border-slate-700 text-emerald-300'
-                        : 'bg-white border-slate-300 text-emerald-800'
-                    }`}
-                  >
-                    {allHomes.map((h) => (
-                      <option key={h.id} value={h.id}>
-                        {h.name} ({h.cutoffTime})
-                      </option>
-                    ))}
-                  </select>
-                  <span className="text-[10px] text-slate-400 hidden sm:inline">Cutoff: {home.cutoffTime} SAST</span>
-                </div>
               ) : (
-                <p className={`text-xs font-medium flex items-center gap-1 truncate ${isNight ? 'text-slate-400' : 'text-slate-500'}`}>
-                  <Building className="w-3 h-3 text-slate-400 shrink-0" />
-                  <span className="truncate">{home.name}</span>
-                  <span className="text-slate-300 hidden sm:inline">•</span>
-                  <span className="hidden sm:inline">Cutoff: {home.cutoffTime} SAST</span>
-                </p>
+                <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-slate-300" />
+                  Connecting...
+                </span>
               )}
+              <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full bg-emerald-50 text-emerald-900 border border-emerald-200/80">
+                <span className="font-mono text-[10px]">
+                  {firebaseConfig.projectId}
+                </span>
+              </span>
             </div>
           </div>
 
           {/* Quick Actions & Navigation Controls */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Dark Theme Switcher Icon */}
-            <ThemeToggle />
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Hamburger Menu - Mobile first: on mobile it sits next to logo */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              title="Menu"
+              className={`p-1.5 md:hidden rounded-xl border transition cursor-pointer ${
+                isNight
+                  ? 'border-slate-800 hover:bg-slate-800 text-slate-300'
+                  : 'border-slate-200 hover:bg-slate-100 text-slate-600'
+              }`}
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
 
             {/* Audio Alert Toggle */}
             <button
@@ -699,7 +700,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 if (!soundEnabled) playEmergencyAlertSound();
               }}
               title={soundEnabled ? 'Emergency siren audio enabled' : 'Emergency siren audio muted'}
-              className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+              className={`p-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1 transition cursor-pointer ${
                 soundEnabled
                   ? isNight
                     ? 'border-emerald-700 bg-emerald-950/60 text-emerald-300'
@@ -709,8 +710,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   : 'border-slate-200 bg-slate-100 text-slate-500'
               }`}
             >
-              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-              <span className="hidden md:inline">{soundEnabled ? 'Audio On' : 'Muted'}</span>
+              {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+              <span className="hidden md:inline text-[11px]">{soundEnabled ? 'Audio On' : 'Muted'}</span>
             </button>
 
             {/* PWA Install Button */}
@@ -735,18 +736,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <LogOut className="w-4 h-4" />
             </button>
 
-            {/* Hamburger Menu - Mobile only */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              title="Menu"
-              className={`md:hidden p-2 rounded-xl border transition cursor-pointer ${
-                isNight
-                  ? 'border-slate-800 hover:bg-slate-800 text-slate-300'
-                  : 'border-slate-200 hover:bg-slate-100 text-slate-600'
-              }`}
-            >
-              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-            </button>
           </div>
         </div>
 
@@ -891,10 +880,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       </header>
 
-      {/* Mobile Dropdown Menu */}
+      {/* Mobile Dropdown Menu - STICKY */}
       {mobileMenuOpen && (
         <div
-          className={`md:hidden border-b shadow-lg ${
+          className={`md:hidden sticky top-0 z-40 border-b shadow-lg max-h-[50vh] overflow-y-auto ${
             isNight ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
